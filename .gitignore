@@ -2,3 +2,5 @@
 structure.sh
 .venv
 README.md
+__pycache__
+.vscode

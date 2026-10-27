@@ -1,10 +1,11 @@
 """Conexión asíncrona con MongoDB mediante Motor."""
 import os
 from motor.motor_asyncio import AsyncIOMotorClient
+from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv()
-
+ENV_FILE = Path(__file__).resolve().parents[1] / ".env"
+load_dotenv(dotenv_path=ENV_FILE)
 MONGODB_URI = os.getenv("MONGODB_URI", "").strip()
 MONGODB_DATABASE = os.getenv("MONGODB_DATABASE", "techgear")
 
