@@ -1,0 +1,281 @@
+
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TechGear | Catálogo</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background: #101010;
+            color: #f5f5f5;
+            font-family: Arial, sans-serif;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 20px;
+            padding: 22px 7%;
+            border-bottom: 1px solid #292929;
+        }
+
+        .logo {
+            color: #fff;
+            font-size: 25px;
+            font-weight: bold;
+            text-decoration: none;
+        }
+
+        .logo span {
+            color: #8b9cff;
+        }
+
+        nav a {
+            color: #ddd;
+            text-decoration: none;
+            margin-left: 24px;
+            font-size: 14px;
+        }
+
+        nav a:hover {
+            color: #a8b5ff;
+        }
+
+        .hero {
+            padding: 65px 7% 45px;
+        }
+
+        .eyebrow {
+            color: #a8b5ff;
+            font-size: 12px;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+        }
+
+        h1 {
+            margin-top: 16px;
+            font-size: clamp(32px, 5vw, 52px);
+        }
+
+        .hero p {
+            max-width: 580px;
+            margin-top: 14px;
+            color: #aaa;
+            line-height: 1.7;
+        }
+
+        .catalogo {
+            padding: 10px 7% 70px;
+        }
+
+        .encabezado-catalogo {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .encabezado-catalogo p {
+            color: #aaa;
+            font-size: 14px;
+        }
+
+        .productos {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 20px;
+        }
+
+        .producto {
+            padding: 24px;
+            background: #191919;
+            border: 1px solid #2b2b2b;
+            border-radius: 12px;
+            transition: border-color .2s, transform .2s;
+        }
+
+        .producto:hover {
+            border-color: #7788ff;
+            transform: translateY(-3px);
+        }
+
+        .producto .categoria {
+            color: #a8b5ff;
+            font-size: 11px;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+        }
+
+        .producto h3 {
+            margin: 18px 0 10px;
+            font-size: 19px;
+        }
+
+        .descripcion {
+            min-height: 44px;
+            color: #aaa;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .precio {
+            margin-top: 22px;
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        .stock {
+            margin-top: 10px;
+            color: #aaa;
+            font-size: 12px;
+        }
+
+        .disponible {
+            color: #83dfaa;
+        }
+
+        .agotado {
+            color: #ff9292;
+        }
+
+        .mensaje {
+            padding: 18px;
+            margin-bottom: 22px;
+            border-radius: 8px;
+            line-height: 1.5;
+        }
+
+        .error {
+            color: #ffb5b5;
+            background: #351d1d;
+        }
+
+        .vacio {
+            color: #bbb;
+            background: #191919;
+            border: 1px solid #2b2b2b;
+            grid-column: 1 / -1;
+        }
+
+        footer {
+            padding: 25px 7%;
+            border-top: 1px solid #292929;
+            color: #888;
+            font-size: 13px;
+            text-align: center;
+        }
+
+        @media (max-width: 520px) {
+            header {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+
+            nav a {
+                margin: 0 16px 0 0;
+            }
+
+            .hero {
+                padding-top: 45px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <a class="logo" href="/">Tech<span>Gear</span></a>
+
+    <nav>
+        <a href="#catalogo">Catálogo</a>
+
+        {% if usuario %}
+            <span>Hola, {{ usuario.nombre }}</span>
+
+            <form action="{% url 'logout' %}" method="POST" style="display: inline;">
+                {% csrf_token %}
+                <button
+                    type="submit"
+                    style="background: #2785ff; color: white; border: none;
+                        padding: 10px 16px; border-radius: 6px; cursor: pointer;"
+                >
+                    Cerrar sesión
+                </button>
+            </form>
+
+        {% else %}
+            <a href="{% url 'login' %}">Iniciar sesión</a>
+        {% endif %}
+    </nav>
+    </header>
+
+    <main>
+        <section class="hero">
+            <span class="eyebrow">Tecnología para tu día a día</span>
+            <h1>Encuentra tu próximo equipo.</h1>
+            <p>
+                Explora nuestro catálogo de productos tecnológicos.
+                Consulta precios y disponibilidad de los artículos.
+            </p>
+        </section>
+
+        <section class="catalogo" id="catalogo">
+            <div class="encabezado-catalogo">
+                <h2>Catálogo de productos</h2>
+                <p>{{ total|default:0 }} productos</p>
+            </div>
+
+            {% if error %}
+                <div class="mensaje error">{{ error }}</div>
+            {% endif %}
+
+            <div class="productos">
+                {% for producto in productos %}
+                    <article class="producto">
+                        <span class="categoria">TechGear</span>
+
+                        <h3>{{ producto.nombre }}</h3>
+
+                        <p class="descripcion">
+                            {{ producto.descripcion|default:"Producto tecnológico de nuestro catálogo." }}
+                        </p>
+
+                        <p class="precio">
+                            ${{ producto.precio|floatformat:0 }}
+                        </p>
+
+                        {% if producto.activo and producto.stock > 0 %}
+                            <p class="stock disponible">
+                                Disponible · {{ producto.stock }} unidades
+                            </p>
+                        {% else %}
+                            <p class="stock agotado">No disponible</p>
+                        {% endif %}
+                    </article>
+                {% empty %}
+                    <div class="mensaje vacio">
+                        {% if not error %}
+                            No hay productos para mostrar en este momento.
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        TechGear · Catálogo de productos tecnológicos
+    </footer>
+</body>
+</html>

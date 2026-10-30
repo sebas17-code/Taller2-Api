@@ -1,6 +1,6 @@
 .env
-structure.sh
 .venv
 README.md
 __pycache__
 .vscode
+db.sqlite3

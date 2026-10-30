@@ -1,0 +1,186 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Iniciar sesión | TechGear</title>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #080808;
+            color: #ffffff;
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+
+        .login-container {
+            width: 100%;
+            max-width: 390px;
+            background: #111111;
+            border: 1px solid #292929;
+            border-radius: 12px;
+            padding: 35px;
+        }
+
+        .logo {
+            text-align: center;
+            font-size: 30px;
+            font-weight: bold;
+            margin-bottom: 12px;
+        }
+
+        .logo span {
+            color: #2785ff;
+        }
+
+        .subtitle {
+            color: #999999;
+            text-align: center;
+            font-size: 14px;
+            margin-bottom: 30px;
+        }
+
+        h2 {
+            font-size: 21px;
+            margin-bottom: 24px;
+            text-align: center;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            font-size: 13px;
+            color: #cccccc;
+            margin-bottom: 8px;
+        }
+
+        input {
+            width: 100%;
+            padding: 13px;
+            background: #1b1b1b;
+            border: 1px solid #333333;
+            border-radius: 6px;
+            color: #ffffff;
+            outline: none;
+            font-size: 14px;
+        }
+
+        input:focus {
+            border-color: #2785ff;
+        }
+
+        button {
+            width: 100%;
+            padding: 14px;
+            background: #2785ff;
+            border: none;
+            border-radius: 6px;
+            color: white;
+            font-weight: bold;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background: #1268d4;
+        }
+
+        .error {
+            background: #381818;
+            border: 1px solid #803333;
+            color: #ffaaaa;
+            padding: 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            margin-bottom: 20px;
+        }
+
+        .back-link {
+            display: block;
+            text-align: center;
+            margin-top: 24px;
+            color: #999999;
+            text-decoration: none;
+            font-size: 13px;
+        }
+
+        .back-link:hover {
+            color: #2785ff;
+        }
+    </style>
+</head>
+
+<body>
+
+    <main class="login-container">
+
+        <div class="logo">Tech<span>Gear</span></div>
+
+        <p class="subtitle">Tu tienda de tecnología</p>
+
+        <h2>Iniciar sesión</h2>
+
+        {% if error %}
+            <div class="error">
+                {{ error }}
+            </div>
+        {% endif %}
+
+        <form action="/login/" method="POST">
+            {% csrf_token %}
+
+            <div class="form-group">
+                <label for="correo">Correo electrónico</label>
+                <input
+                    type="email"
+                    id="correo"
+                    name="correo"
+                    placeholder="usuario@ejemplo.com"
+                    autocomplete="email"
+                    maxlength="254"
+                    required
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="contrasena">Contraseña</label>
+                <input
+                    type="password"
+                    id="contrasena"
+                    name="contrasena"
+                    placeholder="Ingresa tu contraseña"
+                    autocomplete="current-password"
+                    maxlength="128"
+                    required
+                >
+            </div>
+
+            <button type="submit">
+                Ingresar
+            </button>
+
+        </form>
+
+        <a href="/" class="back-link">
+            Volver al catálogo
+        </a>
+
+    </main>
+
+</body>
+</html>

@@ -1,10 +1,27 @@
 """Punto de entrada de la API TechGear."""
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, HTTPException, status
+from fastapi import FastAPI, HTTPException, status, Depends
 from dotenv import load_dotenv
 import os
 from bson import ObjectId
 from datetime import datetime, timezone
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from jwt.exceptions import InvalidTokenError
+from pymongo.errors import DuplicateKeyError
+
+from techgear_api.src.models.usuario import (
+    UsuarioCrear,
+    UsuarioLogin,
+    UsuarioPublico,
+)
+
+from techgear_api.src.security import (
+    hash_password,
+    verify_password,
+    create_access_token,
+    decode_access_token,
+)
+
 
 from techgear_api.data.database import (
     check_connection,
@@ -17,6 +34,8 @@ from techgear_api.src.models.pedido import (
     PedidoCrear,
     ActualizarEstadoPedido,
 )
+
+bearer_scheme = HTTPBearer(auto_error=False)
 
 load_dotenv()
 
@@ -39,6 +58,146 @@ async def inicio():
 @app.get("/health", tags=["Salud"])
 async def health():
     return {"status": "ok", "mongodb_conectado": await check_connection()}
+
+@app.post(
+    "/usuarios",
+    response_model=UsuarioPublico,
+    status_code=status.HTTP_201_CREATED,
+    tags=["Usuarios"],
+)
+async def registrar_usuario(usuario: UsuarioCrear):
+    """Registra un usuario nuevo en MongoDB con contraseña protegida."""
+
+    db = get_database()
+    coleccion = db["usuarios"]
+
+    # Garantizar que no existan dos usuarios con el mismo correo.
+    await coleccion.create_index("correo", unique=True)
+
+    # Normalizar el correo para evitar diferencias entre mayúsculas y minúsculas.
+    correo = usuario.correo.lower()
+
+    # Preparar el documento que se guardará en MongoDB.
+    documento = {
+        "nombre": usuario.nombre,
+        "correo": correo,
+        "contrasena_hash": hash_password(usuario.contrasena),
+        "creado_en": datetime.now(timezone.utc),
+    }
+
+    try:
+        resultado = await coleccion.insert_one(documento)
+
+    except DuplicateKeyError:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Ya existe un usuario registrado con ese correo.",
+        )
+
+    return UsuarioPublico(
+        id=str(resultado.inserted_id),
+        nombre=usuario.nombre,
+        correo=correo,
+    )
+
+@app.post("/usuarios/login", tags=["Usuarios"])
+async def iniciar_sesion(credenciales: UsuarioLogin):
+    """Verifica las credenciales y genera un token JWT."""
+
+    db = get_database()
+
+    # Buscar al usuario mediante su correo.
+    usuario = await db["usuarios"].find_one(
+        {"correo": credenciales.correo.lower()}
+    )
+
+    # Comprobar si existe y si su contraseña es correcta.
+    if usuario is None or not verify_password(
+        credenciales.contrasena,
+        usuario["contrasena_hash"],
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Correo o contraseña incorrectos",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # Generar el token JWT utilizando el ID de MongoDB.
+    token = create_access_token(str(usuario["_id"]))
+
+    return {
+        "mensaje": "Inicio de sesión correcto",
+        "access_token": token,
+        "token_type": "bearer",
+        "usuario": {
+            "id": str(usuario["_id"]),
+            "nombre": usuario["nombre"],
+            "correo": usuario["correo"],
+        },
+    }
+
+async def obtener_usuario_actual(
+    credenciales: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+):
+    """Valida el JWT y obtiene el usuario autenticado."""
+
+    if credenciales is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="No se proporcionó un token de autenticación",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    try:
+        datos_token = decode_access_token(credenciales.credentials)
+
+    except InvalidTokenError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="El token es inválido o ha expirado",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    usuario_id = datos_token.get("sub")
+
+    if not usuario_id or not ObjectId.is_valid(usuario_id):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="El token no contiene un identificador válido",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    db = get_database()
+
+    usuario = await db["usuarios"].find_one(
+        {"_id": ObjectId(usuario_id)}
+    )
+
+    if usuario is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="El usuario autenticado ya no existe",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    return usuario
+
+
+@app.get(
+    "/usuarios/me",
+    response_model=UsuarioPublico,
+    tags=["Usuarios"],
+)
+async def consultar_usuario_actual(
+    usuario: dict = Depends(obtener_usuario_actual),
+):
+    """Devuelve los datos públicos del usuario autenticado."""
+
+    return UsuarioPublico(
+        id=str(usuario["_id"]),
+        nombre=usuario["nombre"],
+        correo=usuario["correo"],
+    )
 
 @app.post("/productos/validar", tags=["Productos"])
 async def validar_producto(producto: Producto):

@@ -16,7 +16,17 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
+from store import views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+
+    # Catálogo
+    path('', views.catalogo, name='catalogo'),
+
+    # Inicio de sesión
+    path('login/', views.iniciar_sesion, name='login'),
+
+    # Cierre de sesión
+    path('logout/', views.cerrar_sesion, name='logout'),
 ]
