@@ -23,9 +23,14 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-8nq))r6%4a+4167^xvrl$e&vbupmdr&9g!9)rod#2n422cjrr#'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    'localhost',
+    '127.0.0.1',
+    'vercel.app',
+    'https://taller2-api-p8kq.onrender.com'
+]
 
 
 # Application definition

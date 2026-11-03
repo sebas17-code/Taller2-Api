@@ -79,10 +79,11 @@ async def registrar_usuario(usuario: UsuarioCrear):
 
     # Preparar el documento que se guardará en MongoDB.
     documento = {
-        "nombre": usuario.nombre,
-        "correo": correo,
-        "contrasena_hash": hash_password(usuario.contrasena),
-        "creado_en": datetime.now(timezone.utc),
+    "nombre": usuario.nombre,
+    "correo": correo,
+    "contrasena_hash": hash_password(usuario.contrasena),
+    "rol": "cliente",
+    "creado_en": datetime.now(timezone.utc),
     }
 
     try:
@@ -133,6 +134,7 @@ async def iniciar_sesion(credenciales: UsuarioLogin):
             "id": str(usuario["_id"]),
             "nombre": usuario["nombre"],
             "correo": usuario["correo"],
+            "rol": usuario.get("rol", "cliente"),
         },
     }
 

@@ -1,4 +1,6 @@
 """Modelo de validación para usuarios."""
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
@@ -66,8 +68,9 @@ class UsuarioLogin(BaseModel):
 
 
 class UsuarioPublico(BaseModel):
-    """Datos del usuario que se pueden devolver en las respuestas."""
+    """Datos públicos del usuario."""
 
     id: str
     nombre: str
     correo: str
+    rol: Literal["admin", "cliente"] = "cliente"
