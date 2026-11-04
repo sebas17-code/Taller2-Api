@@ -29,4 +29,27 @@ urlpatterns = [
 
     # Cierre de sesión
     path('logout/', views.cerrar_sesion, name='logout'),
+
+    # Dashboard administrativo
+    path('dashboard/', views.dashboard_admin, name='dashboard_admin'),
+
+    # Crear productos
+    path(
+        'dashboard/productos/nuevo/',
+        views.crear_producto,
+        name='crear_producto'
+    ),
+    # Editar productos
+    path(
+        'dashboard/productos/<str:producto_id>/editar/',
+        views.editar_producto,
+        name='editar_producto'
+    ),
+    
+    # Eliminar productos
+path(
+    'dashboard/productos/<str:producto_id>/eliminar/',
+    views.eliminar_producto,
+    name='eliminar_producto'
+),
 ]
