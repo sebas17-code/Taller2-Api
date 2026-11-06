@@ -1,6 +1,14 @@
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException, status, Depends
+from fastapi import (
+    FastAPI,
+    HTTPException,
+    status,
+    Depends,
+    File,
+    UploadFile,
+    Response,
+)
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from dotenv import load_dotenv
 from jwt.exceptions import InvalidTokenError
@@ -9,6 +17,7 @@ from pymongo.errors import DuplicateKeyError
 import os
 
 from bson import ObjectId
+from bson.binary import Binary
 from datetime import datetime, timezone
 
 from techgear_api.src.models.usuario import (
@@ -37,6 +46,15 @@ from techgear_api.src.models.pedido import (
     PedidoCrear,
     ActualizarEstadoPedido,
 )
+
+# Configuración de imágenes de productos
+MAX_IMAGE_SIZE = 2 * 1024 * 1024
+
+ALLOWED_IMAGE_TYPES = {
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+}
 
 
 # Configuración
@@ -302,7 +320,7 @@ async def crear_producto(
 
 @app.get("/productos", tags=["Productos"])
 async def listar_productos():
-    """Lista los productos."""
+    """Lista los productos y sus imágenes disponibles."""
 
     db = get_database()
 
@@ -310,10 +328,41 @@ async def listar_productos():
         length=100
     )
 
+    # Consultar qué productos tienen imágenes.
+    ids_productos = [
+        documento["_id"]
+        for documento in documentos
+    ]
+
+    imagenes = await db["imagenes_productos"].find(
+        {
+            "producto_id": {
+                "$in": ids_productos
+            }
+        },
+        {
+            "producto_id": 1
+        }
+    ).to_list(length=100)
+
+    productos_con_imagen = {
+        str(imagen["producto_id"])
+        for imagen in imagenes
+    }
+
     productos = []
 
     for documento in documentos:
-        documento["id"] = str(documento.pop("_id"))
+        producto_id = str(documento.pop("_id"))
+
+        documento["id"] = producto_id
+
+        documento["imagen_url"] = (
+            f"/productos/{producto_id}/imagen"
+            if producto_id in productos_con_imagen
+            else None
+        )
+
         productos.append(documento)
 
     return {
@@ -321,10 +370,10 @@ async def listar_productos():
         "productos": productos,
     }
 
-
+# Consultar un producto por su ID
 @app.get("/productos/{producto_id}", tags=["Productos"])
 async def obtener_producto(producto_id: str):
-    """Busca un producto."""
+    """Busca un producto por su identificador."""
 
     if not ObjectId.is_valid(producto_id):
         raise HTTPException(
@@ -347,7 +396,6 @@ async def obtener_producto(producto_id: str):
     documento["id"] = str(documento.pop("_id"))
 
     return documento
-
 
 @app.put("/productos/{producto_id}", tags=["Productos"])
 async def actualizar_producto(
@@ -418,7 +466,124 @@ async def eliminar_producto(
         "id": producto_id,
     }
 
+# Subir o reemplazar imagen de un producto
+@app.post("/productos/{producto_id}/imagen", tags=["Productos"])
+async def subir_imagen_producto(
+    producto_id: str,
+    imagen: UploadFile = File(...),
+    usuario: dict = Depends(obtener_admin_actual),
+):
+    """Almacena una imagen de producto en MongoDB."""
 
+    if not ObjectId.is_valid(producto_id):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El ID del producto no es válido.",
+        )
+
+    db = get_database()
+
+    producto = await db["productos"].find_one(
+        {"_id": ObjectId(producto_id)}
+    )
+
+    if producto is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Producto no encontrado.",
+        )
+
+    try:
+        contenido = await imagen.read(MAX_IMAGE_SIZE + 1)
+    finally:
+        await imagen.close()
+
+    if not contenido:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="La imagen está vacía.",
+        )
+
+    if len(contenido) > MAX_IMAGE_SIZE:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail="La imagen no puede superar los 2 MB.",
+        )
+
+    # Verificar el formato real del archivo.
+    if contenido.startswith(b"\xff\xd8\xff"):
+        content_type = "image/jpeg"
+
+    elif contenido.startswith(b"\x89PNG\r\n\x1a\n"):
+        content_type = "image/png"
+
+    elif (
+        len(contenido) >= 12
+        and contenido[:4] == b"RIFF"
+        and contenido[8:12] == b"WEBP"
+    ):
+        content_type = "image/webp"
+
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail="Formato no permitido. Utiliza JPG, PNG o WebP.",
+        )
+
+    await db["imagenes_productos"].replace_one(
+        {"producto_id": ObjectId(producto_id)},
+        {
+            "producto_id": ObjectId(producto_id),
+            "contenido": Binary(contenido),
+            "content_type": content_type,
+            "nombre_archivo": imagen.filename or "producto",
+            "actualizado_en": datetime.now(timezone.utc),
+        },
+        upsert=True,
+    )
+
+    return {
+        "mensaje": "Imagen del producto guardada correctamente.",
+        "producto_id": producto_id,
+        "imagen_url": f"/productos/{producto_id}/imagen",
+    }
+
+
+# Consultar imagen de un producto
+@app.get(
+    "/productos/{producto_id}/imagen",
+    response_class=Response,
+    tags=["Productos"],
+)
+async def obtener_imagen_producto(producto_id: str):
+    """Devuelve la imagen almacenada de un producto."""
+
+    if not ObjectId.is_valid(producto_id):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El ID del producto no es válido.",
+        )
+
+    db = get_database()
+
+    imagen = await db["imagenes_productos"].find_one(
+        {"producto_id": ObjectId(producto_id)}
+    )
+
+    if imagen is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="El producto todavía no tiene una imagen.",
+        )
+
+    return Response(
+        content=bytes(imagen["contenido"]),
+        media_type=imagen["content_type"],
+        headers={
+            "Cache-Control": "public, max-age=300",
+        },
+    )
+    
 # Pedidos
 
 @app.post("/pedidos/validar", tags=["Pedidos"])

@@ -1,13 +1,25 @@
-
+{% load static %}
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es-CO">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>TechGear | Dashboard administrativo</title>
+    <title>TechGear | Dashboard Administrativo</title>
+    <meta name="description" content="Panel administrativo de TechGear para gestionar el catálogo, consultar inventario y administrar productos tecnológicos.">
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="theme-color" content="#0A0E17">
 
     <style>
+        :root {
+            --fondo: #0A0E17;
+            --superficie: #1E2530;
+            --cyan: #00F0FF;
+            --blanco: #FFFFFF;
+            --secundario: #94A3B8;
+            --borde: #303947;
+        }
+
         * {
             box-sizing: border-box;
             margin: 0;
@@ -15,154 +27,303 @@
         }
 
         body {
-            background: #101010;
-            color: #f5f5f5;
-            font-family: Arial, sans-serif;
-            padding: 35px 7%;
-        }
-
-        header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 20px;
-            margin-bottom: 45px;
-        }
-
-        h1 span {
-            color: #2785ff;
+            min-height: 100vh;
+            background: var(--fondo);
+            color: var(--blanco);
+            font-family: "Segoe UI", Arial, sans-serif;
+            line-height: 1.6;
         }
 
         a, button {
-            color: white;
-            padding: 11px 16px;
-            border: none;
-            text-decoration: none;
-            cursor: pointer;
-            display: inline-block;
-            font-size: 14px;
+            font: inherit;
         }
 
-        a:hover, button:hover {
-            opacity: 0.85;
+        /* NAVBAR */
+
+        header {
+            min-height: 82px;
+            padding: 15px 7%;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+            background: var(--superficie);
+            border-bottom: 1px solid var(--borde);
+        }
+
+        .logo {
+            color: var(--blanco);
+            text-decoration: none;
+            font-size: 27px;
+            font-weight: 800;
+            letter-spacing: -1.2px;
+        }
+
+        .logo span {
+            color: var(--blanco);
+        }
+
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .nav-links a,
+        .btn-logout {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 42px;
+            padding: 9px 17px;
+            background: transparent;
+            color: var(--blanco);
+            border: 1px solid #596579;
+            border-radius: 3px;
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: .2s ease;
+        }
+
+        .nav-links a:hover,
+        .btn-logout:hover {
+            background: var(--fondo);
+            border-color: var(--blanco);
+        }
+
+        .logout-form {
+            display: inline-flex;
+            margin: 0;
+        }
+
+        /* CONTENIDO */
+
+        main {
+            width: min(100% - 48px, 1250px);
+            margin: 0 auto;
+            padding: 65px 0 90px;
+        }
+
+        .eyebrow {
+            color: var(--secundario);
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 3px;
+            text-transform: uppercase;
         }
 
         .informacion {
-            margin-bottom: 30px;
+            margin-bottom: 35px;
+        }
+
+        .informacion h1 {
+            margin-top: 12px;
+            color: var(--blanco);
+            font-size: clamp(30px, 5vw, 44px);
+            font-weight: 800;
+            letter-spacing: -1.8px;
         }
 
         .informacion p {
-            color: #aaa;
             margin-top: 10px;
+            color: var(--secundario);
+            font-size: 14px;
         }
+
+        /* RESUMEN */
+
+        .resumen {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+            margin-bottom: 28px;
+            padding: 25px;
+            background: var(--superficie);
+            border: 1px solid var(--borde);
+            border-radius: 4px;
+        }
+
+        .resumen p {
+            color: var(--secundario);
+            font-size: 13px;
+        }
+
+        .resumen strong {
+            color: var(--blanco);
+            font-size: 30px;
+        }
+
+        /* ACCIONES */
 
         .acciones-principales {
             margin-bottom: 25px;
         }
 
         .btn-nuevo {
-            background: #2785ff;
-            font-weight: bold;
+            display: inline-flex;
+            align-items: center;
+            min-height: 45px;
+            padding: 11px 20px;
+            background: var(--cyan);
+            color: var(--fondo);
+            border: 1px solid var(--cyan);
+            border-radius: 3px;
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 800;
+            transition: .2s ease;
         }
 
+        .btn-nuevo:hover {
+            background: #00C8D6;
+            border-color: #00C8D6;
+        }
+
+        /* TABLA */
+
         .tabla-contenedor {
+            width: 100%;
             overflow-x: auto;
+            background: var(--superficie);
+            border: 1px solid var(--borde);
+            border-radius: 4px;
         }
 
         table {
             width: 100%;
+            min-width: 850px;
             border-collapse: collapse;
-            background: #191919;
-            min-width: 750px;
         }
 
         th, td {
             padding: 17px;
             text-align: left;
-            border-bottom: 1px solid #333;
+            border-bottom: 1px solid var(--borde);
+            font-size: 13px;
         }
 
         th {
-            background: #222;
-            color: #2785ff;
+            background: #161D28;
+            color: var(--secundario);
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        td {
+            color: var(--blanco);
         }
 
         tbody tr:hover {
-            background: #242424;
+            background: #252E3B;
         }
 
-        .estado {
-            color: #83dfaa;
-        }
-
+        .estado,
         .inactivo {
-            color: #ff9292;
+            color: var(--secundario);
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .acciones-tabla {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+        }
+
+        .btn-editar,
+        .btn-eliminar {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 35px;
+            padding: 7px 12px;
+            border: 1px solid #596579;
+            border-radius: 3px;
+            font-size: 11px;
+            font-weight: 700;
+            text-decoration: none;
+            cursor: pointer;
+            transition: .2s ease;
         }
 
         .btn-editar {
-            background: #d69b25;
-            color: #111;
-            font-weight: bold;
+            background: transparent;
+            color: var(--blanco);
         }
 
         .btn-editar:hover {
-            background: #f0b83e;
+            background: var(--fondo);
         }
 
         .btn-eliminar {
-            background: #c93636;
-            color: white;
-            font-weight: bold;
-            margin-left: 5px;
+            background: transparent;
+            color: var(--blanco);
         }
 
         .btn-eliminar:hover {
-            background: #a51f1f;
+            background: var(--fondo);
+            border-color: var(--blanco);
         }
 
         .form-eliminar {
-            display: inline-block;
-        }
-
-        .error {
-            color: #ffaaaa;
-            background: #351d1d;
-            padding: 15px;
-            margin-bottom: 20px;
-        }
-
-        .mensaje-exito {
-            color: #83dfaa;
-            background: #17351f;
-            padding: 15px;
-            margin-bottom: 20px;
-        }
-
-        .mensaje-error {
-            color: #ffaaaa;
-            background: #351d1d;
-            padding: 15px;
-            margin-bottom: 20px;
+            display: inline-flex;
+            margin: 0;
         }
 
         .vacio {
-            color: #aaa;
-            padding: 20px;
+            padding: 35px;
+            color: var(--secundario);
             text-align: center;
         }
 
-        .volver {
-            background: #333;
+        /* MENSAJES */
+
+        .error,
+        .mensaje-error,
+        .mensaje-exito {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: var(--superficie);
+            color: var(--blanco);
+            border: 1px solid #596579;
+            border-radius: 3px;
+            font-size: 13px;
         }
 
-        @media (max-width: 650px) {
+        /* RESPONSIVE */
+
+        @media (max-width: 700px) {
             header {
                 align-items: flex-start;
                 flex-direction: column;
+                padding: 20px 5%;
             }
 
-            body {
-                padding: 25px 5%;
+            .nav-links {
+                flex-wrap: wrap;
+            }
+
+            main {
+                width: calc(100% - 32px);
+                padding: 40px 0 65px;
+            }
+
+            .resumen {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *,
+            *::before,
+            *::after {
+                transition-duration: .01ms !important;
             }
         }
     </style>
@@ -171,80 +332,72 @@
 <body>
 
     <header>
+        <a href="{% url 'catalogo' %}" class="logo">
+            TechGear<span>.</span>
+        </a>
 
-        <h1>Tech<span>Gear</span> | Admin</h1>
+        <nav class="nav-links" aria-label="Navegación administrativa">
+            <a href="{% url 'catalogo' %}">Catálogo</a>
 
-        <div>
-            <a href="{% url 'catalogo' %}" class="volver">
-                Ver catálogo
-            </a>
-        </div>
-
+            <form
+                action="{% url 'logout' %}"
+                method="POST"
+                class="logout-form"
+            >
+                {% csrf_token %}
+                <button type="submit" class="btn-logout">
+                    Cerrar sesión
+                </button>
+            </form>
+        </nav>
     </header>
 
     <main>
 
-        <!-- Información del administrador -->
-
         <section class="informacion">
-
-            <h2>Dashboard administrativo</h2>
+            <span class="eyebrow">Panel de control</span>
+            <h1>Dashboard administrativo</h1>
 
             <p>
                 Bienvenido, {{ usuario.nombre }}.
+                Gestiona los productos de TechGear.
             </p>
-
-            <p>
-                Total de productos: {{ total }}
-            </p>
-
         </section>
 
-        <!-- Botón para crear productos -->
-
-        <div class="acciones-principales">
-
-            <a
-                href="{% url 'crear_producto' %}"
-                class="btn-nuevo"
-            >
-                + Nuevo producto
-            </a>
-
-        </div>
-
-        <!-- Mensajes de Django -->
-
-        {% if messages %}
-
-            {% for message in messages %}
-
-                <div class="{% if message.tags == 'error' %}mensaje-error{% else %}mensaje-exito{% endif %}">
-                    {{ message }}
-                </div>
-
-            {% endfor %}
-
-        {% endif %}
-
-        <!-- Mensajes de error de FastAPI -->
-
-        {% if error %}
-
-            <div class="error">
-                {{ error }}
+        <section class="resumen">
+            <div>
+                <p>Total de productos registrados</p>
             </div>
 
+            <strong>{{ total }}</strong>
+        </section>
+
+        <div class="acciones-principales">
+            <a href="{% url 'crear_producto' %}" class="btn-nuevo">
+                + Nuevo producto
+            </a>
+        </div>
+
+        {% if messages %}
+            {% for message in messages %}
+                <div
+                    class="{% if message.tags == 'error' %}mensaje-error{% else %}mensaje-exito{% endif %}"
+                    role="status"
+                >
+                    {{ message }}
+                </div>
+            {% endfor %}
         {% endif %}
 
-        <!-- Tabla de productos -->
+        {% if error %}
+            <div class="error" role="alert">
+                {{ error }}
+            </div>
+        {% endif %}
 
         <section class="tabla-contenedor">
-
             <table>
-
                 <thead>
-
                     <tr>
                         <th>Producto</th>
                         <th>Precio</th>
@@ -252,96 +405,60 @@
                         <th>Estado</th>
                         <th>Acciones</th>
                     </tr>
-
                 </thead>
 
                 <tbody>
-
                     {% for producto in productos %}
-
                         <tr>
-
-                            <td>
-                                {{ producto.nombre }}
-                            </td>
+                            <td>{{ producto.nombre }}</td>
 
                             <td>
                                 ${{ producto.precio|floatformat:0 }}
                             </td>
 
-                            <td>
-                                {{ producto.stock }}
-                            </td>
+                            <td>{{ producto.stock }}</td>
 
                             <td>
-
                                 {% if producto.activo %}
-
-                                    <span class="estado">
-                                        Activo
-                                    </span>
-
+                                    <span class="estado">Activo</span>
                                 {% else %}
-
-                                    <span class="inactivo">
-                                        Inactivo
-                                    </span>
-
+                                    <span class="inactivo">Inactivo</span>
                                 {% endif %}
-
                             </td>
 
                             <td>
-
-                                <!-- Editar producto -->
-
-                                <a
-                                    href="{% url 'editar_producto' producto_id=producto.id %}"
-                                    class="btn-editar"
-                                >
-                                    Editar
-                                </a>
-
-                                <!-- Eliminar producto -->
-
-                                <form
-                                    action="{% url 'eliminar_producto' producto_id=producto.id %}"
-                                    method="POST"
-                                    class="form-eliminar"
-                                    onsubmit="return confirm('¿Estás seguro de eliminar este producto?');"
-                                >
-
-                                    {% csrf_token %}
-
-                                    <button
-                                        type="submit"
-                                        class="btn-eliminar"
+                                <div class="acciones-tabla">
+                                    <a
+                                        href="{% url 'editar_producto' producto_id=producto.id %}"
+                                        class="btn-editar"
                                     >
-                                        Eliminar
-                                    </button>
+                                        Editar
+                                    </a>
 
-                                </form>
-
+                                    <form
+                                        action="{% url 'eliminar_producto' producto_id=producto.id %}"
+                                        method="POST"
+                                        class="form-eliminar"
+                                        onsubmit="return confirm('¿Estás seguro de eliminar este producto?');"
+                                    >
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn-eliminar">
+                                            Eliminar
+                                        </button>
+                                    </form>
+                                </div>
                             </td>
-
                         </tr>
 
                     {% empty %}
-
                         <tr>
-
                             <td colspan="5" class="vacio">
                                 No hay productos registrados.
                             </td>
-
                         </tr>
-
                     {% endfor %}
-
                 </tbody>
-
             </table>
-
         </section>
 
     </main>

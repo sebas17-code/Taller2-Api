@@ -26,6 +26,9 @@ urlpatterns = [
 
     # Inicio de sesión
     path('login/', views.iniciar_sesion, name='login'),
+    
+    # Registro
+    path('registro/', views.registrar_usuario, name='registro'),
 
     # Cierre de sesión
     path('logout/', views.cerrar_sesion, name='logout'),

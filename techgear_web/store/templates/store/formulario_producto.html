@@ -1,13 +1,24 @@
-
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es-CO">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>TechGear | Nuevo producto</title>
+    <title>TechGear | Crear producto</title>
+    <meta name="description" content="Formulario administrativo para registrar nuevos productos tecnológicos en TechGear.">
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="theme-color" content="#0A0E17">
 
     <style>
+        :root {
+            --fondo: #0A0E17;
+            --superficie: #1E2530;
+            --cyan: #00F0FF;
+            --blanco: #FFFFFF;
+            --secundario: #94A3B8;
+            --borde: #303947;
+        }
+
         * {
             box-sizing: border-box;
             margin: 0;
@@ -15,56 +26,187 @@
         }
 
         body {
-            background: #101010;
-            color: #f5f5f5;
-            font-family: Arial, sans-serif;
-            padding: 40px 20px;
+            min-height: 100vh;
+            background: var(--fondo);
+            color: var(--blanco);
+            font-family: "Segoe UI", Arial, sans-serif;
+            line-height: 1.6;
         }
 
+        /* NAVBAR */
+
+        header {
+            min-height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+            padding: 15px 7%;
+            background: var(--superficie);
+            border-bottom: 1px solid var(--borde);
+        }
+
+        .logo {
+            color: var(--blanco);
+            font-size: 26px;
+            font-weight: 800;
+            letter-spacing: -1px;
+            text-decoration: none;
+        }
+
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .nav-links a,
+        .btn-logout {
+            padding: 9px 15px;
+            background: transparent;
+            color: var(--blanco);
+            border: 1px solid #596579;
+            border-radius: 3px;
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .nav-links a:hover,
+        .btn-logout:hover {
+            background: var(--fondo);
+        }
+
+        .logout-form {
+            display: inline-flex;
+            margin: 0;
+        }
+
+        /* FORMULARIO */
+
         .contenedor {
-            max-width: 550px;
-            margin: auto;
-            background: #191919;
-            border: 1px solid #333;
-            padding: 30px;
+            width: min(100% - 32px, 650px);
+            margin: 65px auto;
+        }
+
+        .formulario {
+            padding: 38px;
+            background: var(--superficie);
+            border: 1px solid var(--borde);
+            border-radius: 5px;
+        }
+
+        .eyebrow {
+            color: var(--secundario);
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 3px;
+            text-transform: uppercase;
         }
 
         h1 {
-            margin-bottom: 10px;
-        }
-
-        h1 span {
-            color: #2785ff;
+            margin-top: 12px;
+            font-size: clamp(27px, 5vw, 38px);
+            font-weight: 800;
+            letter-spacing: -1.5px;
         }
 
         .subtitulo {
-            color: #aaa;
-            margin-bottom: 25px;
+            margin: 10px 0 30px;
+            color: var(--secundario);
+            font-size: 14px;
         }
 
         .grupo {
-            margin-bottom: 20px;
+            margin-bottom: 22px;
         }
 
         label {
             display: block;
             margin-bottom: 8px;
-            font-size: 14px;
+            color: var(--blanco);
+            font-size: 13px;
+            font-weight: 600;
         }
 
-        input:not([type="checkbox"]),
+        input:not([type="checkbox"]):not([type="file"]),
         textarea {
             width: 100%;
-            padding: 12px;
-            background: #101010;
-            color: white;
-            border: 1px solid #444;
+            min-height: 46px;
+            padding: 12px 14px;
+            background: var(--fondo);
+            color: var(--blanco);
+            border: 1px solid #596579;
+            border-radius: 3px;
+            outline: none;
+            font: inherit;
+            font-size: 13px;
         }
 
         textarea {
+            min-height: 120px;
             resize: vertical;
-            min-height: 100px;
         }
+
+        input:focus,
+        textarea:focus {
+            border-color: var(--cyan);
+            outline: 1px solid var(--cyan);
+        }
+
+        input::placeholder,
+        textarea::placeholder {
+            color: var(--secundario);
+        }
+
+        /* FOTOGRAFÍA */
+
+        .campo-imagen {
+            padding: 20px;
+            background: var(--fondo);
+            border: 1px dashed #596579;
+            border-radius: 3px;
+        }
+
+        input[type="file"] {
+            width: 100%;
+            color: var(--secundario);
+            font-size: 12px;
+        }
+
+        input[type="file"]::file-selector-button {
+            margin-right: 12px;
+            padding: 10px 14px;
+            background: var(--superficie);
+            color: var(--blanco);
+            border: 1px solid #596579;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+
+        .ayuda {
+            display: block;
+            margin-top: 10px;
+            color: var(--secundario);
+            font-size: 11px;
+        }
+
+        .preview-contenedor {
+            display: none;
+            margin-top: 18px;
+        }
+
+        .preview-contenedor img {
+            display: block;
+            width: 100%;
+            max-height: 240px;
+            object-fit: contain;
+            background: var(--superficie);
+            border: 1px solid var(--borde);
+        }
+
+        /* ESTADO */
 
         .activo {
             display: flex;
@@ -72,142 +214,313 @@
             gap: 10px;
         }
 
+        .activo input {
+            width: 17px;
+            height: 17px;
+            accent-color: var(--cyan);
+        }
+
         .activo label {
             margin: 0;
         }
 
+        /* MENSAJES */
+
         .error {
-            background: #351d1d;
-            color: #ffaaaa;
-            padding: 12px;
-            margin-bottom: 20px;
+            margin-bottom: 22px;
+            padding: 14px;
+            background: var(--fondo);
+            color: var(--blanco);
+            border: 1px solid #94A3B8;
+            font-size: 13px;
         }
+
+        .mensaje {
+            margin-bottom: 20px;
+            padding: 13px;
+            background: var(--fondo);
+            color: var(--blanco);
+            border: 1px solid #596579;
+            font-size: 13px;
+        }
+
+        /* BOTONES */
 
         .acciones {
             display: flex;
+            flex-wrap: wrap;
             gap: 12px;
-            margin-top: 25px;
+            margin-top: 30px;
         }
 
-        button, .volver {
-            padding: 12px 18px;
-            border: none;
-            text-decoration: none;
+        button,
+        .volver {
+            min-height: 45px;
+            padding: 12px 19px;
+            border: 1px solid #596579;
+            border-radius: 3px;
             cursor: pointer;
-            font-weight: bold;
+            font-size: 13px;
+            font-weight: 700;
+            text-decoration: none;
+            transition: .2s ease;
         }
 
-        button {
-            background: #2785ff;
-            color: white;
+        button[type="submit"] {
+            background: var(--cyan);
+            color: var(--fondo);
+            border-color: var(--cyan);
+        }
+
+        button[type="submit"]:hover {
+            background: #00C8D6;
+            border-color: #00C8D6;
         }
 
         .volver {
-            background: #333;
-            color: white;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: transparent;
+            color: var(--blanco);
+        }
+
+        .volver:hover {
+            background: var(--fondo);
+        }
+
+        button:focus-visible,
+        a:focus-visible {
+            outline: 2px solid var(--cyan);
+            outline-offset: 3px;
+        }
+
+        @media (max-width: 600px) {
+            header {
+                align-items: flex-start;
+                flex-direction: column;
+                padding: 18px 5%;
+            }
+
+            .nav-links {
+                flex-wrap: wrap;
+            }
+
+            .contenedor {
+                margin: 35px auto;
+            }
+
+            .formulario {
+                padding: 23px;
+            }
+
+            .acciones {
+                flex-direction: column;
+            }
+
+            .acciones button,
+            .acciones a {
+                width: 100%;
+            }
         }
     </style>
 </head>
 
 <body>
 
+    <header>
+        <a href="{% url 'catalogo' %}" class="logo">
+            TechGear.
+        </a>
+
+        <nav class="nav-links" aria-label="Navegación administrativa">
+            <a href="{% url 'catalogo' %}">Catálogo</a>
+            <a href="{% url 'dashboard_admin' %}">Dashboard</a>
+
+            <form action="{% url 'logout' %}" method="POST" class="logout-form">
+                {% csrf_token %}
+                <button type="submit" class="btn-logout">
+                    Cerrar sesión
+                </button>
+            </form>
+        </nav>
+    </header>
+
     <main class="contenedor">
 
-        <h1>Tech<span>Gear</span></h1>
+        <section class="formulario">
 
-        <p class="subtitulo">Registrar un nuevo producto</p>
+            <span class="eyebrow">Administración de inventario</span>
 
-        {% if error %}
-            <div class="error">
-                {{ error }}
-            </div>
-        {% endif %}
+            <h1>Nuevo producto</h1>
 
-        {% if messages %}
-            {% for message in messages %}
-                <div style="
-                    background: #17351f;
-                    color: #83dfaa;
-                    padding: 15px;
-                    margin-bottom: 20px;
-                ">
-                    {{ message }}
+            <p class="subtitulo">
+                Registra un producto en el catálogo de TechGear.
+            </p>
+
+            {% if error %}
+                <div class="error" role="alert">
+                    {{ error }}
                 </div>
-            {% endfor %}
-        {% endif %}
+            {% endif %}
 
-        <form method="POST" action="{% url 'crear_producto' %}">
-            {% csrf_token %}
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="mensaje" role="status">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
 
-            <div class="grupo">
-                <label for="nombre">Nombre del producto</label>
-                <input
-                    type="text"
-                    id="nombre"
-                    name="nombre"
-                    minlength="2"
-                    maxlength="120"
-                    required
-                >
-            </div>
+            <form
+                method="POST"
+                action="{% url 'crear_producto' %}"
+                enctype="multipart/form-data"
+            >
+                {% csrf_token %}
 
-            <div class="grupo">
-                <label for="descripcion">Descripción</label>
-                <textarea
-                    id="descripcion"
-                    name="descripcion"
-                    maxlength="1000"
-                ></textarea>
-            </div>
+                <div class="grupo">
+                    <label for="nombre">Nombre del producto</label>
+                    <input
+                        type="text"
+                        id="nombre"
+                        name="nombre"
+                        placeholder="Ej. Teclado mecánico"
+                        minlength="2"
+                        maxlength="120"
+                        required
+                    >
+                </div>
 
-            <div class="grupo">
-                <label for="precio">Precio</label>
-                <input
-                    type="number"
-                    id="precio"
-                    name="precio"
-                    min="0.01"
-                    step="0.01"
-                    required
-                >
-            </div>
+                <div class="grupo">
+                    <label for="descripcion">Descripción</label>
+                    <textarea
+                        id="descripcion"
+                        name="descripcion"
+                        placeholder="Describe las características del producto..."
+                        maxlength="1000"
+                    ></textarea>
+                </div>
 
-            <div class="grupo">
-                <label for="stock">Cantidad en inventario</label>
-                <input
-                    type="number"
-                    id="stock"
-                    name="stock"
-                    min="0"
-                    step="1"
-                    value="0"
-                    required
-                >
-            </div>
+                <div class="grupo">
+                    <label for="precio">Precio (COP)</label>
+                    <input
+                        type="number"
+                        id="precio"
+                        name="precio"
+                        placeholder="Ej. 200000"
+                        min="0.01"
+                        step="0.01"
+                        required
+                    >
+                </div>
 
-            <div class="grupo activo">
-                <input
-                    type="checkbox"
-                    id="activo"
-                    name="activo"
-                    checked
-                >
-                <label for="activo">Producto activo</label>
-            </div>
+                <div class="grupo">
+                    <label for="stock">Cantidad en inventario</label>
+                    <input
+                        type="number"
+                        id="stock"
+                        name="stock"
+                        min="0"
+                        step="1"
+                        value="0"
+                        required
+                    >
+                </div>
 
-            <div class="acciones">
-                <button type="submit">
-                    Registrar producto
-                </button>
+                <div class="grupo">
+                    <label for="imagen">Fotografía del producto</label>
 
-                <a href="{% url 'dashboard_admin' %}" class="volver">
-                    Volver
-                </a>
-            </div>
+                    <div class="campo-imagen">
+                        <input
+                            type="file"
+                            id="imagen"
+                            name="imagen"
+                            accept="image/jpeg,image/png,image/webp"
+                        >
 
-        </form>
+                        <small class="ayuda">
+                            JPG, PNG o WebP. Tamaño máximo: 2 MB.
+                        </small>
+
+                        <div class="preview-contenedor" id="preview-contenedor">
+                            <img id="preview-imagen" alt="Vista previa del producto">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grupo activo">
+                    <input
+                        type="checkbox"
+                        id="activo"
+                        name="activo"
+                        checked
+                    >
+                    <label for="activo">Producto activo</label>
+                </div>
+
+                <div class="acciones">
+                    <button type="submit">
+                        Registrar producto
+                    </button>
+
+                    <a href="{% url 'dashboard_admin' %}" class="volver">
+                        Volver al dashboard
+                    </a>
+                </div>
+
+            </form>
+
+        </section>
 
     </main>
+
+    <script>
+        const inputImagen = document.getElementById("imagen");
+        const previewContenedor = document.getElementById("preview-contenedor");
+        const previewImagen = document.getElementById("preview-imagen");
+
+        let urlTemporal = null;
+
+        inputImagen.addEventListener("change", function () {
+            const archivo = this.files[0];
+
+            if (urlTemporal) {
+                URL.revokeObjectURL(urlTemporal);
+                urlTemporal = null;
+            }
+
+            if (!archivo) {
+                previewContenedor.style.display = "none";
+                previewImagen.removeAttribute("src");
+                return;
+            }
+
+            const tiposPermitidos = [
+                "image/jpeg",
+                "image/png",
+                "image/webp"
+            ];
+
+            if (!tiposPermitidos.includes(archivo.type)) {
+                alert("Selecciona una imagen JPG, PNG o WebP.");
+                this.value = "";
+                previewContenedor.style.display = "none";
+                return;
+            }
+
+            if (archivo.size > 2 * 1024 * 1024) {
+                alert("La imagen no puede superar los 2 MB.");
+                this.value = "";
+                previewContenedor.style.display = "none";
+                return;
+            }
+
+            urlTemporal = URL.createObjectURL(archivo);
+            previewImagen.src = urlTemporal;
+            previewContenedor.style.display = "block";
+        });
+    </script>
 
 </body>
 </html>

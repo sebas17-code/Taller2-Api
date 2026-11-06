@@ -3,4 +3,5 @@
 README.md
 __pycache__
 .vscode
-db.sqlite3
+db.sqlite3techgear_web/staticfiles/
+techgear_web/db.sqlite3

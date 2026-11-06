@@ -1,6 +1,5 @@
-
 import requests
-
+import os
 from functools import wraps
 
 from django.shortcuts import render, redirect
@@ -8,6 +7,21 @@ from django.views.decorators.http import require_POST
 from django.http import HttpResponseForbidden
 from django.contrib import messages
 
+# Dirección del backend FastAPI
+FASTAPI_URL = os.environ.get(
+    "FASTAPI_URL",
+    "http://127.0.0.1:8000"
+).rstrip("/")
+
+# Completar las direcciones de las imágenes de FastAPI
+def completar_urls_imagenes(productos):
+    for producto in productos:
+        imagen_url = producto.get("imagen_url")
+
+        if imagen_url:
+            producto["imagen_url"] = f"{FASTAPI_URL}{imagen_url}"
+
+    return productos
 
 # Permisos de administrador
 def requiere_admin(vista):
@@ -82,7 +96,7 @@ def catalogo(request):
 
     try:
         respuesta = requests.get(
-            "http://127.0.0.1:8000/productos",
+            f"{FASTAPI_URL}/productos",
             timeout=5,
         )
 
@@ -91,6 +105,7 @@ def catalogo(request):
         datos = respuesta.json()
 
         productos = datos.get("productos", [])
+        productos = completar_urls_imagenes(productos)
         total = datos.get("total", len(productos))
 
     except (requests.RequestException, ValueError):
@@ -157,7 +172,7 @@ def crear_pedido_cliente(request):
 
     try:
         respuesta = requests.post(
-            "http://127.0.0.1:8000/pedidos",
+            f"{FASTAPI_URL}/pedidos",
             json=datos_pedido,
             headers=headers,
             timeout=5,
@@ -218,7 +233,7 @@ def mis_pedidos(request):
 
     try:
         respuesta = requests.get(
-            "http://127.0.0.1:8000/pedidos",
+            f"{FASTAPI_URL}/pedidos",
             headers=headers,
             timeout=5,
         )
@@ -251,6 +266,117 @@ def mis_pedidos(request):
     )
 
 
+# Registrar usuario
+def registrar_usuario(request):
+    if request.method == "GET":
+        return render(request, "store/registro.html")
+
+    nombre = request.POST.get("nombre", "").strip()
+    correo = request.POST.get("correo", "").strip().lower()
+    contrasena = request.POST.get("contrasena", "")
+    confirmar_contrasena = request.POST.get(
+        "confirmar_contrasena", ""
+    )
+
+    if not nombre or not correo or not contrasena:
+        return render(
+            request,
+            "store/registro.html",
+            {
+                "error": "Debes completar todos los campos.",
+                "nombre": nombre,
+                "correo": correo,
+            },
+            status=400,
+        )
+
+    if contrasena != confirmar_contrasena:
+        return render(
+            request,
+            "store/registro.html",
+            {
+                "error": "Las contraseñas no coinciden.",
+                "nombre": nombre,
+                "correo": correo,
+            },
+            status=400,
+        )
+
+    if len(contrasena) < 8 or len(contrasena) > 128:
+        return render(
+            request,
+            "store/registro.html",
+            {
+                "error": "La contraseña debe tener entre 8 y 128 caracteres.",
+                "nombre": nombre,
+                "correo": correo,
+            },
+            status=400,
+        )
+
+    try:
+        respuesta = requests.post(
+            f"{FASTAPI_URL}/usuarios",
+            json={
+                "nombre": nombre,
+                "correo": correo,
+                "contrasena": contrasena,
+            },
+            timeout=5,
+        )
+
+    except requests.RequestException:
+        return render(
+            request,
+            "store/registro.html",
+            {
+                "error": "No fue posible conectar con el servidor.",
+                "nombre": nombre,
+                "correo": correo,
+            },
+            status=503,
+        )
+
+    try:
+        datos = respuesta.json()
+    except ValueError:
+        datos = {}
+
+    if respuesta.status_code == 201:
+        messages.success(
+            request,
+            "Tu cuenta fue creada correctamente. Ya puedes iniciar sesión."
+        )
+        return redirect("login")
+
+    if respuesta.status_code == 409:
+        error = "Ya existe una cuenta registrada con ese correo."
+
+    elif respuesta.status_code == 422:
+        detalle = datos.get("detail", [])
+        if isinstance(detalle, list):
+            error = "; ".join(
+                elemento.get("msg", "Dato inválido")
+                for elemento in detalle
+            )
+        else:
+            error = str(detalle)
+
+    else:
+        error = "No fue posible completar el registro. Inténtalo nuevamente."
+
+    return render(
+        request,
+        "store/registro.html",
+        {
+            "error": error,
+            "nombre": nombre,
+            "correo": correo,
+        },
+        status=400,
+    )
+
+
 # Inicio de sesión
 def iniciar_sesion(request):
     if request.method == "GET":
@@ -274,7 +400,7 @@ def iniciar_sesion(request):
 
     try:
         respuesta = requests.post(
-            "http://127.0.0.1:8000/usuarios/login",
+            f"{FASTAPI_URL}/usuarios/login",
             json={
                 "correo": correo,
                 "contrasena": contrasena,
@@ -382,7 +508,7 @@ def dashboard_admin(request):
 
     try:
         respuesta = requests.get(
-            "http://127.0.0.1:8000/productos",
+            f"{FASTAPI_URL}/productos",
             timeout=5,
         )
 
@@ -409,6 +535,7 @@ def dashboard_admin(request):
 
 
 # Crear productos
+# Crear productos
 @requiere_admin
 def crear_producto(request):
     error = None
@@ -419,60 +546,116 @@ def crear_producto(request):
         if not headers:
             return redirigir_login_token(request)
 
-        datos_producto = {
-            "nombre": request.POST.get("nombre", "").strip(),
-            "descripcion": request.POST.get("descripcion", "").strip() or None,
-            "precio": request.POST.get("precio", "").strip(),
-            "stock": request.POST.get("stock", "0").strip(),
-            "activo": request.POST.get("activo") == "on",
-        }
+        imagen = request.FILES.get("imagen")
 
-        try:
-            respuesta = requests.post(
-                "http://127.0.0.1:8000/productos",
-                json=datos_producto,
-                headers=headers,
-                timeout=5,
-            )
-            
-            if respuesta.status_code == 401:
-                return redirigir_login_token(request)
+        # Validar la fotografía seleccionada.
+        if imagen and imagen.size > 2 * 1024 * 1024:
+            error = "La imagen no puede superar los 2 MB."
+
+        elif imagen and imagen.content_type not in [
+            "image/jpeg",
+            "image/png",
+            "image/webp",
+        ]:
+            error = "Utiliza una imagen JPG, PNG o WebP."
+
+        if not error:
+            datos_producto = {
+                "nombre": request.POST.get("nombre", "").strip(),
+                "descripcion": request.POST.get("descripcion", "").strip() or None,
+                "precio": request.POST.get("precio", "").strip(),
+                "stock": request.POST.get("stock", "0").strip(),
+                "activo": request.POST.get("activo") == "on",
+            }
 
             try:
-                datos_respuesta = respuesta.json()
-            except ValueError:
-                datos_respuesta = {}
-
-            if respuesta.status_code == 201:
-                messages.success(
-                    request,
-                    "Producto creado correctamente."
+                # Crear primero el producto en FastAPI.
+                respuesta = requests.post(
+                    f"{FASTAPI_URL}/productos",
+                    json=datos_producto,
+                    headers=headers,
+                    timeout=10,
                 )
 
-                return redirect("dashboard_admin")
+                if respuesta.status_code == 401:
+                    return redirigir_login_token(request)
 
-            detalle = datos_respuesta.get("detail")
+                try:
+                    datos_respuesta = respuesta.json()
+                except ValueError:
+                    datos_respuesta = {}
 
-            if isinstance(detalle, list):
-                errores = []
+                if respuesta.status_code == 201:
+                    producto_id = datos_respuesta.get("id")
 
-                for elemento in detalle:
-                    campo = ".".join(
-                        str(parte)
-                        for parte in elemento.get("loc", [])
-                        if parte != "body"
-                    )
+                    # Subir la fotografía del producto creado.
+                    if imagen and producto_id:
+                        try:
+                            imagen.seek(0)
 
-                    mensaje = elemento.get("msg", "Dato inválido")
-                    errores.append(f"{campo}: {mensaje}")
+                            respuesta_imagen = requests.post(
+                                f"{FASTAPI_URL}/productos/{producto_id}/imagen",
+                                files={
+                                    "imagen": (
+                                        imagen.name,
+                                        imagen,
+                                        imagen.content_type,
+                                    )
+                                },
+                                headers=headers,
+                                timeout=15,
+                            )
 
-                error = "; ".join(errores)
+                            if respuesta_imagen.status_code == 401:
+                                return redirigir_login_token(request)
 
-            else:
-                error = detalle or "No fue posible crear el producto."
+                            if respuesta_imagen.status_code == 200:
+                                messages.success(
+                                    request,
+                                    "Producto y fotografía registrados correctamente.",
+                                )
+                            else:
+                                messages.warning(
+                                    request,
+                                    "El producto fue creado, pero no se pudo guardar su fotografía.",
+                                )
 
-        except requests.RequestException:
-            error = "No fue posible conectar con FastAPI."
+                        except requests.RequestException:
+                            messages.warning(
+                                request,
+                                "Producto creado, pero ocurrió un error al subir la fotografía.",
+                            )
+
+                    else:
+                        messages.success(
+                            request,
+                            "Producto creado correctamente.",
+                        )
+
+                    return redirect("dashboard_admin")
+
+                detalle = datos_respuesta.get("detail")
+
+                if isinstance(detalle, list):
+                    errores = []
+
+                    for elemento in detalle:
+                        campo = ".".join(
+                            str(parte)
+                            for parte in elemento.get("loc", [])
+                            if parte != "body"
+                        )
+
+                        mensaje = elemento.get("msg", "Dato inválido")
+                        errores.append(f"{campo}: {mensaje}")
+
+                    error = "; ".join(errores)
+
+                else:
+                    error = detalle or "No fue posible crear el producto."
+
+            except requests.RequestException:
+                error = "No fue posible conectar con FastAPI."
 
     return render(
         request,
@@ -496,53 +679,103 @@ def editar_producto(request, producto_id):
         if not headers:
             return redirigir_login_token(request)
 
-        datos_producto = {
-            "nombre": request.POST.get("nombre", "").strip(),
-            "descripcion": request.POST.get("descripcion", "").strip() or None,
-            "precio": request.POST.get("precio", "").strip(),
-            "stock": request.POST.get("stock", "0").strip(),
-            "activo": request.POST.get("activo") == "on",
-        }
+        imagen = request.FILES.get("imagen")
 
-        try:
-            respuesta = requests.put(
-                f"http://127.0.0.1:8000/productos/{producto_id}",
-                json=datos_producto,
-                headers=headers,
-                timeout=5,
-            )
-            if respuesta.status_code == 401:
-                return redirigir_login_token(request)
+        # Validar el tamaño de la fotografía.
+        if imagen and imagen.size > 2 * 1024 * 1024:
+            error = "La imagen no puede superar los 2 MB."
 
-            if respuesta.status_code == 200:
-                messages.success(
-                    request,
-                    "Producto actualizado correctamente."
-                )
-
-                return redirect("dashboard_admin")
+        if not error:
+            datos_producto = {
+                "nombre": request.POST.get("nombre", "").strip(),
+                "descripcion": request.POST.get("descripcion", "").strip() or None,
+                "precio": request.POST.get("precio", "").strip(),
+                "stock": request.POST.get("stock", "0").strip(),
+                "activo": request.POST.get("activo") == "on",
+            }
 
             try:
-                datos_respuesta = respuesta.json()
-            except ValueError:
-                datos_respuesta = {}
-
-            detalle = datos_respuesta.get("detail")
-
-            if isinstance(detalle, list):
-                error = "; ".join(
-                    elemento.get("msg", "Dato inválido")
-                    for elemento in detalle
+                # Actualizar los datos del producto.
+                respuesta = requests.put(
+                    f"{FASTAPI_URL}/productos/{producto_id}",
+                    json=datos_producto,
+                    headers=headers,
+                    timeout=10,
                 )
-            else:
-                error = detalle or "No fue posible actualizar el producto."
 
-        except requests.RequestException:
-            error = "No fue posible conectar con FastAPI."
+                if respuesta.status_code == 401:
+                    return redirigir_login_token(request)
 
+                if respuesta.status_code == 200:
+
+                    # Reemplazar la fotografía si se seleccionó otra.
+                    if imagen:
+                        try:
+                            imagen.seek(0)
+
+                            respuesta_imagen = requests.post(
+                                f"{FASTAPI_URL}/productos/{producto_id}/imagen",
+                                files={
+                                    "imagen": (
+                                        imagen.name,
+                                        imagen,
+                                        imagen.content_type,
+                                    )
+                                },
+                                headers=headers,
+                                timeout=15,
+                            )
+
+                            if respuesta_imagen.status_code == 401:
+                                return redirigir_login_token(request)
+
+                            if respuesta_imagen.status_code == 200:
+                                messages.success(
+                                    request,
+                                    "Producto y fotografía actualizados correctamente.",
+                                )
+                            else:
+                                messages.warning(
+                                    request,
+                                    "Los datos se actualizaron, pero no se pudo cambiar la fotografía.",
+                                )
+
+                        except requests.RequestException:
+                            messages.warning(
+                                request,
+                                "Los datos se actualizaron, pero ocurrió un error al subir la fotografía.",
+                            )
+
+                    else:
+                        messages.success(
+                            request,
+                            "Producto actualizado correctamente.",
+                        )
+
+                    return redirect("dashboard_admin")
+
+                try:
+                    datos_respuesta = respuesta.json()
+                except ValueError:
+                    datos_respuesta = {}
+
+                detalle = datos_respuesta.get("detail")
+
+                if isinstance(detalle, list):
+                    error = "; ".join(
+                        elemento.get("msg", "Dato inválido")
+                        for elemento in detalle
+                    )
+                else:
+                    error = detalle or "No fue posible actualizar el producto."
+
+            except requests.RequestException:
+                error = "No fue posible conectar con FastAPI."
+
+    # Consultar los datos actuales del producto.
     try:
         respuesta_producto = requests.get(
-            f"http://127.0.0.1:8000/productos/{producto_id}",
+            f"{FASTAPI_URL}/productos/{producto_id}",
             timeout=5,
         )
 
@@ -581,7 +814,7 @@ def eliminar_producto(request, producto_id):
 
     try:
         respuesta = requests.delete(
-            f"http://127.0.0.1:8000/productos/{producto_id}",
+            f"{FASTAPI_URL}/productos/{producto_id}",
             headers=headers,
             timeout=5,
         )

@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="es-CO">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>TechGear | Crear cuenta</title>
+    <meta name="description" content="Regístrate en TechGear para explorar productos tecnológicos y gestionar tus compras y pedidos.">
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="theme-color" content="#0A0E17">
+
+    <style>
+        :root {
+            --fondo: #0A0E17;
+            --superficie: #1E2530;
+            --cyan: #00F0FF;
+            --blanco: #FFFFFF;
+            --secundario: #94A3B8;
+            --borde: #303947;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 30px 20px;
+            background: var(--fondo);
+            color: var(--blanco);
+            font-family: "Segoe UI", Arial, sans-serif;
+        }
+
+        .registro-container {
+            width: 100%;
+            max-width: 490px;
+            padding: 40px;
+            background: var(--superficie);
+            border: 1px solid var(--borde);
+            border-radius: 5px;
+        }
+
+        .logo {
+            color: var(--blanco);
+            font-size: 34px;
+            font-weight: 800;
+            letter-spacing: -2px;
+            text-align: center;
+        }
+
+        .subtitle {
+            margin-top: 9px;
+            color: var(--secundario);
+            font-size: 12px;
+            text-align: center;
+            letter-spacing: 1px;
+        }
+
+        h1 {
+            margin-top: 32px;
+            color: var(--blanco);
+            font-size: 27px;
+            font-weight: 800;
+            letter-spacing: -1px;
+            text-align: center;
+        }
+
+        .descripcion {
+            margin: 9px 0 28px;
+            color: var(--secundario);
+            font-size: 13px;
+            text-align: center;
+            line-height: 1.6;
+        }
+
+        /* FORMULARIO */
+
+        .form-group {
+            margin-bottom: 19px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: var(--blanco);
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        input {
+            width: 100%;
+            min-height: 46px;
+            padding: 12px 14px;
+            background: var(--fondo);
+            color: var(--blanco);
+            border: 1px solid #596579;
+            border-radius: 3px;
+            outline: none;
+            font: inherit;
+            font-size: 13px;
+        }
+
+        input::placeholder {
+            color: var(--secundario);
+        }
+
+        input:focus {
+            border-color: var(--cyan);
+            outline: 1px solid var(--cyan);
+        }
+
+        /* MENSAJES */
+
+        .error,
+        .success {
+            margin-bottom: 20px;
+            padding: 13px;
+            background: var(--fondo);
+            color: var(--blanco);
+            border: 1px solid #596579;
+            border-radius: 3px;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+
+        /* BOTÓN */
+
+        button {
+            width: 100%;
+            min-height: 48px;
+            margin-top: 7px;
+            padding: 13px;
+            background: var(--cyan);
+            color: var(--fondo);
+            border: 1px solid var(--cyan);
+            border-radius: 3px;
+            font-size: 13px;
+            font-weight: 800;
+            cursor: pointer;
+            transition: .2s ease;
+        }
+
+        button:hover {
+            background: #00C8D6;
+            border-color: #00C8D6;
+        }
+
+        button:focus-visible,
+        a:focus-visible {
+            outline: 2px solid var(--cyan);
+            outline-offset: 3px;
+        }
+
+        /* ENLACES */
+
+        .enlaces {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+            margin-top: 25px;
+            text-align: center;
+        }
+
+        .enlaces a {
+            color: var(--secundario);
+            font-size: 12px;
+            text-decoration: none;
+            transition: color .2s ease;
+        }
+
+        .enlaces a:hover {
+            color: var(--blanco);
+            text-decoration: underline;
+            text-underline-offset: 4px;
+        }
+
+        .login-link {
+            color: var(--blanco) !important;
+            font-weight: 700;
+        }
+
+        .separador {
+            width: 100%;
+            height: 1px;
+            background: var(--borde);
+        }
+
+        @media (max-width: 480px) {
+            .registro-container {
+                padding: 29px 22px;
+            }
+
+            h1 {
+                font-size: 24px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <main class="registro-container">
+
+        <div class="logo">
+            TechGear.
+        </div>
+
+        <p class="subtitle">
+            GAMING · HARDWARE · TECHNOLOGY
+        </p>
+
+        <h1>Crear una cuenta</h1>
+
+        <p class="descripcion">
+            Regístrate y comienza a explorar el catálogo de TechGear.
+        </p>
+
+        {% if error %}
+            <div class="error" role="alert">
+                {{ error }}
+            </div>
+        {% endif %}
+
+        {% if messages %}
+            {% for message in messages %}
+                <div class="success" role="status">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        <form action="{% url 'registro' %}" method="POST">
+            {% csrf_token %}
+
+            <div class="form-group">
+                <label for="nombre">Nombre completo</label>
+
+                <input
+                    type="text"
+                    id="nombre"
+                    name="nombre"
+                    placeholder="Ingresa tu nombre"
+                    value="{{ nombre|default:'' }}"
+                    autocomplete="name"
+                    minlength="2"
+                    maxlength="100"
+                    required
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="correo">Correo electrónico</label>
+
+                <input
+                    type="email"
+                    id="correo"
+                    name="correo"
+                    placeholder="usuario@ejemplo.com"
+                    value="{{ correo|default:'' }}"
+                    autocomplete="email"
+                    maxlength="254"
+                    required
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="contrasena">Contraseña</label>
+
+                <input
+                    type="password"
+                    id="contrasena"
+                    name="contrasena"
+                    placeholder="Mínimo 8 caracteres"
+                    autocomplete="new-password"
+                    minlength="8"
+                    maxlength="128"
+                    required
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="confirmar_contrasena">
+                    Confirmar contraseña
+                </label>
+
+                <input
+                    type="password"
+                    id="confirmar_contrasena"
+                    name="confirmar_contrasena"
+                    placeholder="Repite tu contraseña"
+                    autocomplete="new-password"
+                    minlength="8"
+                    maxlength="128"
+                    required
+                >
+            </div>
+
+            <button type="submit">
+                Crear cuenta
+            </button>
+
+        </form>
+
+        <div class="enlaces">
+
+            <a href="{% url 'login' %}" class="login-link">
+                ¿Ya tienes una cuenta? Inicia sesión
+            </a>
+
+            <div class="separador"></div>
+
+            <a href="{% url 'catalogo' %}">
+                Volver al catálogo
+            </a>
+
+        </div>
+
+    </main>
+
+</body>
+</html>
