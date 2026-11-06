@@ -1,13 +1,15 @@
-"""Punto de entrada de la API TechGear."""
 from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, HTTPException, status, Depends
-from dotenv import load_dotenv
-import os
-from bson import ObjectId
-from datetime import datetime, timezone
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from dotenv import load_dotenv
 from jwt.exceptions import InvalidTokenError
 from pymongo.errors import DuplicateKeyError
+
+import os
+
+from bson import ObjectId
+from datetime import datetime, timezone
 
 from techgear_api.src.models.usuario import (
     UsuarioCrear,
@@ -22,42 +24,62 @@ from techgear_api.src.security import (
     decode_access_token,
 )
 
-
 from techgear_api.data.database import (
     check_connection,
     close_db,
     get_database,
 )
+
 from techgear_api.src.models.producto import Producto
+
 from techgear_api.src.models.pedido import (
     Pedido,
     PedidoCrear,
     ActualizarEstadoPedido,
 )
 
+
+# Configuración
+
 bearer_scheme = HTTPBearer(auto_error=False)
 
 load_dotenv()
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     yield
     close_db()
 
+
 app = FastAPI(
     title=os.getenv("APP_NAME", "TechGear API"),
-    description="API inicial de TechGear con modelos Pydantic y conexión a MongoDB.",
+    description="API de TechGear",
     version="0.1.0",
     lifespan=lifespan,
 )
 
+
+# Rutas de inicio
+
 @app.get("/", tags=["Inicio"])
 async def inicio():
-    return {"mensaje": "TechGear API funcionando", "documentacion": "/docs", "salud": "/health"}
+    return {
+        "mensaje": "TechGear API funcionando",
+        "documentacion": "/docs",
+        "salud": "/health",
+    }
+
 
 @app.get("/health", tags=["Salud"])
 async def health():
-    return {"status": "ok", "mongodb_conectado": await check_connection()}
+    return {
+        "status": "ok",
+        "mongodb_conectado": await check_connection(),
+    }
+
+
+# Usuarios
 
 @app.post(
     "/usuarios",
@@ -66,24 +88,21 @@ async def health():
     tags=["Usuarios"],
 )
 async def registrar_usuario(usuario: UsuarioCrear):
-    """Registra un usuario nuevo en MongoDB con contraseña protegida."""
+    """Registra un usuario."""
 
     db = get_database()
     coleccion = db["usuarios"]
 
-    # Garantizar que no existan dos usuarios con el mismo correo.
     await coleccion.create_index("correo", unique=True)
 
-    # Normalizar el correo para evitar diferencias entre mayúsculas y minúsculas.
     correo = usuario.correo.lower()
 
-    # Preparar el documento que se guardará en MongoDB.
     documento = {
-    "nombre": usuario.nombre,
-    "correo": correo,
-    "contrasena_hash": hash_password(usuario.contrasena),
-    "rol": "cliente",
-    "creado_en": datetime.now(timezone.utc),
+        "nombre": usuario.nombre,
+        "correo": correo,
+        "contrasena_hash": hash_password(usuario.contrasena),
+        "rol": "cliente",
+        "creado_en": datetime.now(timezone.utc),
     }
 
     try:
@@ -99,31 +118,32 @@ async def registrar_usuario(usuario: UsuarioCrear):
         id=str(resultado.inserted_id),
         nombre=usuario.nombre,
         correo=correo,
+        rol="cliente",
     )
+
+
+# Login
 
 @app.post("/usuarios/login", tags=["Usuarios"])
 async def iniciar_sesion(credenciales: UsuarioLogin):
-    """Verifica las credenciales y genera un token JWT."""
+    """Inicia sesión."""
 
     db = get_database()
 
-    # Buscar al usuario mediante su correo.
     usuario = await db["usuarios"].find_one(
         {"correo": credenciales.correo.lower()}
     )
 
-    # Comprobar si existe y si su contraseña es correcta.
     if usuario is None or not verify_password(
         credenciales.contrasena,
         usuario["contrasena_hash"],
     ):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Correo o contraseña incorrectos",
+            detail="Correo o contraseña incorrectos.",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # Generar el token JWT utilizando el ID de MongoDB.
     token = create_access_token(str(usuario["_id"]))
 
     return {
@@ -138,25 +158,32 @@ async def iniciar_sesion(credenciales: UsuarioLogin):
         },
     }
 
+
+# Autenticación
+
 async def obtener_usuario_actual(
-    credenciales: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+    credenciales: HTTPAuthorizationCredentials | None = Depends(
+        bearer_scheme
+    ),
 ):
-    """Valida el JWT y obtiene el usuario autenticado."""
+    """Obtiene el usuario actual."""
 
     if credenciales is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="No se proporcionó un token de autenticación",
+            detail="No se proporcionó un token de autenticación.",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
     try:
-        datos_token = decode_access_token(credenciales.credentials)
+        datos_token = decode_access_token(
+            credenciales.credentials
+        )
 
     except InvalidTokenError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="El token es inválido o ha expirado",
+            detail="El token es inválido o ha expirado.",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
@@ -165,7 +192,7 @@ async def obtener_usuario_actual(
     if not usuario_id or not ObjectId.is_valid(usuario_id):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="El token no contiene un identificador válido",
+            detail="El token no contiene un identificador válido.",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
@@ -178,12 +205,44 @@ async def obtener_usuario_actual(
     if usuario is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="El usuario autenticado ya no existe",
+            detail="El usuario autenticado ya no existe.",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
     return usuario
 
+
+# Roles
+
+async def obtener_admin_actual(
+    usuario: dict = Depends(obtener_usuario_actual),
+):
+    """Verifica si es admin."""
+
+    if usuario.get("rol") != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No tienes permisos de administrador.",
+        )
+
+    return usuario
+
+
+async def obtener_cliente_actual(
+    usuario: dict = Depends(obtener_usuario_actual),
+):
+    """Verifica si es cliente."""
+
+    if usuario.get("rol", "cliente") != "cliente":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Esta operación está disponible únicamente para clientes.",
+        )
+
+    return usuario
+
+
+# Consultar usuario
 
 @app.get(
     "/usuarios/me",
@@ -193,31 +252,46 @@ async def obtener_usuario_actual(
 async def consultar_usuario_actual(
     usuario: dict = Depends(obtener_usuario_actual),
 ):
-    """Devuelve los datos públicos del usuario autenticado."""
+    """Devuelve el usuario actual."""
 
     return UsuarioPublico(
         id=str(usuario["_id"]),
         nombre=usuario["nombre"],
         correo=usuario["correo"],
+        rol=usuario.get("rol", "cliente"),
     )
+
+
+# Productos
 
 @app.post("/productos/validar", tags=["Productos"])
 async def validar_producto(producto: Producto):
-    """Valida un producto recibido; no lo guarda todavía en MongoDB."""
-    return {"mensaje": "Producto válido", "producto": producto.model_dump()}
+    """Valida un producto."""
+
+    return {
+        "mensaje": "Producto válido",
+        "producto": producto.model_dump(),
+    }
+
 
 @app.post(
     "/productos",
     status_code=status.HTTP_201_CREATED,
     tags=["Productos"],
 )
-async def crear_producto(producto: Producto):
-    """Crea y guarda un producto en MongoDB Atlas."""
+async def crear_producto(
+    producto: Producto,
+    usuario: dict = Depends(obtener_admin_actual),
+):
+    """Crea un producto."""
+
     db = get_database()
 
     datos_producto = producto.model_dump()
 
-    resultado = await db["productos"].insert_one(datos_producto)
+    resultado = await db["productos"].insert_one(
+        datos_producto
+    )
 
     return {
         "mensaje": "Producto creado correctamente",
@@ -225,12 +299,16 @@ async def crear_producto(producto: Producto):
         "producto": producto.model_dump(),
     }
 
+
 @app.get("/productos", tags=["Productos"])
 async def listar_productos():
-    """Devuelve los productos guardados en MongoDB."""
+    """Lista los productos."""
+
     db = get_database()
 
-    documentos = await db["productos"].find().to_list(length=100)
+    documentos = await db["productos"].find().to_list(
+        length=100
+    )
 
     productos = []
 
@@ -241,14 +319,17 @@ async def listar_productos():
     return {
         "total": len(productos),
         "productos": productos,
-    }  
+    }
+
+
 @app.get("/productos/{producto_id}", tags=["Productos"])
 async def obtener_producto(producto_id: str):
-    """Busca un producto por su identificador de MongoDB."""
+    """Busca un producto."""
+
     if not ObjectId.is_valid(producto_id):
         raise HTTPException(
-            status_code=400,
-            detail="El ID del producto no es válido",
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El ID del producto no es válido.",
         )
 
     db = get_database()
@@ -259,22 +340,27 @@ async def obtener_producto(producto_id: str):
 
     if documento is None:
         raise HTTPException(
-            status_code=404,
-            detail="Producto no encontrado",
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Producto no encontrado.",
         )
 
     documento["id"] = str(documento.pop("_id"))
 
     return documento
 
+
 @app.put("/productos/{producto_id}", tags=["Productos"])
-async def actualizar_producto(producto_id: str, producto: Producto):
-    """Actualiza los datos de un producto existente."""
+async def actualizar_producto(
+    producto_id: str,
+    producto: Producto,
+    usuario: dict = Depends(obtener_admin_actual)
+):
+    """Actualiza un producto."""
 
     if not ObjectId.is_valid(producto_id):
         raise HTTPException(
-            status_code=400,
-            detail="El ID del producto no es válido",
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El ID del producto no es válido.",
         )
 
     db = get_database()
@@ -286,8 +372,8 @@ async def actualizar_producto(producto_id: str, producto: Producto):
 
     if resultado.matched_count == 0:
         raise HTTPException(
-            status_code=404,
-            detail="Producto no encontrado",
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Producto no encontrado.",
         )
 
     documento = await db["productos"].find_one(
@@ -299,15 +385,20 @@ async def actualizar_producto(producto_id: str, producto: Producto):
     return {
         "mensaje": "Producto actualizado correctamente",
         "producto": documento,
-    }   
+    }
+
+
 @app.delete("/productos/{producto_id}", tags=["Productos"])
-async def eliminar_producto(producto_id: str):
-    """Elimina un producto por su identificador."""
+async def eliminar_producto(
+    producto_id: str,
+    usuario: dict = Depends(obtener_admin_actual),
+):
+    """Elimina un producto."""
 
     if not ObjectId.is_valid(producto_id):
         raise HTTPException(
-            status_code=400,
-            detail="El ID del producto no es válido",
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El ID del producto no es válido.",
         )
 
     db = get_database()
@@ -318,48 +409,65 @@ async def eliminar_producto(producto_id: str):
 
     if resultado.deleted_count == 0:
         raise HTTPException(
-            status_code=404,
-            detail="Producto no encontrado",
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Producto no encontrado.",
         )
 
     return {
         "mensaje": "Producto eliminado correctamente",
         "id": producto_id,
-    }  
+    }
+
+
+# Pedidos
+
 @app.post("/pedidos/validar", tags=["Pedidos"])
 async def validar_pedido(pedido: Pedido):
-    """Valida un pedido recibido; no lo guarda todavía en MongoDB."""
-    return {"mensaje": "Pedido válido", "pedido": pedido.model_dump(mode="json")}
+    """Valida un pedido."""
+
+    return {
+        "mensaje": "Pedido válido",
+        "pedido": pedido.model_dump(mode="json"),
+    }
+
 
 @app.post(
     "/pedidos",
     status_code=status.HTTP_201_CREATED,
     tags=["Pedidos"],
 )
-async def crear_pedido(pedido: PedidoCrear):
-    """Crea un pedido y actualiza el inventario en MongoDB."""
+async def crear_pedido(
+    pedido: PedidoCrear,
+    usuario: dict = Depends(obtener_cliente_actual),
+):
+    """Crea un pedido."""
 
     db = get_database()
 
-    # Validar los identificadores antes de consultar la base de datos.
+    # Validar IDs
     for articulo in pedido.articulos:
         if not ObjectId.is_valid(articulo.producto_id):
             raise HTTPException(
-                status_code=400,
-                detail=f"ID de producto inválido: {articulo.producto_id}",
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    f"ID de producto inválido: "
+                    f"{articulo.producto_id}"
+                ),
             )
 
     articulos_pedido = []
     total = 0.0
     creado_en = datetime.now(timezone.utc)
 
-    # La transacción permite guardar el pedido y descontar el stock
-    # como una sola operación: si falla, los cambios se revierten.
+    # Transacción para el pedido e inventario
     async with await db.client.start_session() as session:
         async with session.start_transaction():
 
             for articulo in pedido.articulos:
-                producto_id = ObjectId(articulo.producto_id)
+
+                producto_id = ObjectId(
+                    articulo.producto_id
+                )
 
                 producto = await db["productos"].find_one(
                     {"_id": producto_id},
@@ -368,41 +476,61 @@ async def crear_pedido(pedido: PedidoCrear):
 
                 if producto is None:
                     raise HTTPException(
-                        status_code=404,
-                        detail=f"Producto no encontrado: {articulo.producto_id}",
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail=(
+                            f"Producto no encontrado: "
+                            f"{articulo.producto_id}"
+                        ),
                     )
 
                 if not producto.get("activo", True):
                     raise HTTPException(
-                        status_code=409,
-                        detail=f"El producto '{producto['nombre']}' no está disponible",
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail=(
+                            f"El producto '{producto['nombre']}' "
+                            "no está disponible."
+                        ),
                     )
 
                 if producto.get("stock", 0) < articulo.cantidad:
                     raise HTTPException(
-                        status_code=409,
-                        detail=f"Stock insuficiente para '{producto['nombre']}'",
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail=(
+                            f"Stock insuficiente para "
+                            f"'{producto['nombre']}'."
+                        ),
                     )
 
-                # El precio siempre se obtiene de MongoDB.
+                # Obtener precio de la BD
                 precio = float(producto["precio"])
-                subtotal = round(precio * articulo.cantidad, 2)
 
-                # Descontar stock solo si todavía es suficiente.
+                subtotal = round(
+                    precio * articulo.cantidad,
+                    2,
+                )
+
+                # Descontar stock
                 resultado_stock = await db["productos"].update_one(
                     {
                         "_id": producto_id,
                         "activo": True,
                         "stock": {"$gte": articulo.cantidad},
                     },
-                    {"$inc": {"stock": -articulo.cantidad}},
+                    {
+                        "$inc": {
+                            "stock": -articulo.cantidad,
+                        }
+                    },
                     session=session,
                 )
 
                 if resultado_stock.modified_count == 0:
                     raise HTTPException(
-                        status_code=409,
-                        detail=f"No fue posible reservar el stock de '{producto['nombre']}'",
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail=(
+                            "No fue posible reservar el stock "
+                            f"de '{producto['nombre']}'."
+                        ),
                     )
 
                 articulos_pedido.append({
@@ -417,8 +545,10 @@ async def crear_pedido(pedido: PedidoCrear):
 
             total = round(total, 2)
 
+            # Datos del pedido
             documento_pedido = {
-                "cliente": pedido.cliente,
+                "cliente_id": str(usuario["_id"]),
+                "cliente": usuario["nombre"],
                 "articulos": articulos_pedido,
                 "total": total,
                 "estado": "pendiente",
@@ -430,21 +560,43 @@ async def crear_pedido(pedido: PedidoCrear):
                 documento_pedido,
                 session=session,
             )
+
     documento_pedido.pop("_id", None)
-        
+
     return {
         "mensaje": "Pedido creado correctamente",
         "id": str(resultado_pedido.inserted_id),
         "pedido": documento_pedido,
     }
-    
+
+
 @app.get("/pedidos", tags=["Pedidos"])
-async def listar_pedidos():
-    """Devuelve los pedidos guardados en MongoDB."""
+async def listar_pedidos(
+    usuario: dict = Depends(obtener_usuario_actual),
+):
+    """Lista pedidos según el rol."""
 
     db = get_database()
 
-    documentos = await db["pedidos"].find().sort(
+    rol = usuario.get("rol", "cliente")
+
+    if rol == "admin":
+        filtro = {}
+
+    elif rol == "cliente":
+        filtro = {
+            "cliente_id": str(usuario["_id"]),
+        }
+
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No tienes permisos para consultar pedidos.",
+        )
+
+    documentos = await db["pedidos"].find(
+        filtro
+    ).sort(
         "creado_en", -1
     ).to_list(length=100)
 
@@ -458,27 +610,44 @@ async def listar_pedidos():
         "total": len(pedidos),
         "pedidos": pedidos,
     }
-    
+
+
 @app.get("/pedidos/{pedido_id}", tags=["Pedidos"])
-async def obtener_pedido(pedido_id: str):
-    """Busca un pedido por su identificador de MongoDB."""
+async def obtener_pedido(
+    pedido_id: str,
+    usuario: dict = Depends(obtener_usuario_actual),
+):
+    """Consulta un pedido."""
 
     if not ObjectId.is_valid(pedido_id):
         raise HTTPException(
-            status_code=400,
-            detail="El ID del pedido no es válido",
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El ID del pedido no es válido.",
         )
 
     db = get_database()
 
-    documento = await db["pedidos"].find_one(
-        {"_id": ObjectId(pedido_id)}
-    )
+    filtro = {
+        "_id": ObjectId(pedido_id),
+    }
+
+    rol = usuario.get("rol", "cliente")
+
+    if rol == "cliente":
+        filtro["cliente_id"] = str(usuario["_id"])
+
+    elif rol != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No tienes permisos para consultar este pedido.",
+        )
+
+    documento = await db["pedidos"].find_one(filtro)
 
     if documento is None:
         raise HTTPException(
-            status_code=404,
-            detail="Pedido no encontrado",
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Pedido no encontrado.",
         )
 
     documento["id"] = str(documento.pop("_id"))
@@ -486,20 +655,25 @@ async def obtener_pedido(pedido_id: str):
     return documento
 
 
-@app.patch("/pedidos/{pedido_id}/estado", tags=["Pedidos"])
+@app.patch(
+    "/pedidos/{pedido_id}/estado",
+    tags=["Pedidos"],
+)
 async def actualizar_estado_pedido(
     pedido_id: str,
     datos: ActualizarEstadoPedido,
+    usuario: dict = Depends(obtener_admin_actual),
 ):
-    """Actualiza el estado de un pedido y gestiona su cancelación."""
+    """Actualiza el estado de un pedido."""
 
     if not ObjectId.is_valid(pedido_id):
         raise HTTPException(
-            status_code=400,
-            detail="El ID del pedido no es válido",
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El ID del pedido no es válido.",
         )
 
     db = get_database()
+
     nuevo_estado = datos.estado
 
     async with await db.client.start_session() as session:
@@ -512,11 +686,14 @@ async def actualizar_estado_pedido(
 
             if pedido is None:
                 raise HTTPException(
-                    status_code=404,
-                    detail="Pedido no encontrado",
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Pedido no encontrado.",
                 )
 
-            estado_actual = pedido.get("estado", "pendiente")
+            estado_actual = pedido.get(
+                "estado",
+                "pendiente",
+            )
 
             transiciones_permitidas = {
                 "pendiente": {"pagado", "cancelado"},
@@ -527,58 +704,81 @@ async def actualizar_estado_pedido(
             }
 
             if nuevo_estado not in transiciones_permitidas.get(
-                estado_actual, set()
+                estado_actual,
+                set(),
             ):
                 raise HTTPException(
-                    status_code=409,
+                    status_code=status.HTTP_409_CONFLICT,
                     detail=(
                         f"No se puede cambiar el pedido de "
-                        f"'{estado_actual}' a '{nuevo_estado}'"
+                        f"'{estado_actual}' a '{nuevo_estado}'."
                     ),
                 )
 
-            # Si se cancela un pedido pendiente, se recupera su stock.
+            # Recuperar inventario si se cancela
             if nuevo_estado == "cancelado":
 
                 for articulo in pedido["articulos"]:
-                    producto_id = articulo.get("producto_id", "")
-                    cantidad = articulo.get("cantidad", 0)
+
+                    producto_id = articulo.get(
+                        "producto_id",
+                        "",
+                    )
+
+                    cantidad = articulo.get(
+                        "cantidad",
+                        0,
+                    )
 
                     if (
                         not ObjectId.is_valid(producto_id)
                         or cantidad <= 0
                     ):
                         raise HTTPException(
-                            status_code=409,
+                            status_code=status.HTTP_409_CONFLICT,
                             detail=(
                                 "No se puede recuperar el inventario "
-                                "por los datos de un artículo inválido"
+                                "por los datos de un artículo inválido."
                             ),
                         )
 
                     resultado_stock = await db["productos"].update_one(
-                        {"_id": ObjectId(producto_id)},
-                        {"$inc": {"stock": cantidad}},
+                        {
+                            "_id": ObjectId(producto_id),
+                        },
+                        {
+                            "$inc": {
+                                "stock": cantidad,
+                            }
+                        },
                         session=session,
                     )
 
                     if resultado_stock.matched_count == 0:
                         raise HTTPException(
-                            status_code=409,
+                            status_code=status.HTTP_409_CONFLICT,
                             detail=(
-                                f"No se encontró el producto "
-                                f"{producto_id} para recuperar el stock"
+                                "No se encontró el producto "
+                                f"{producto_id} para recuperar el stock."
                             ),
                         )
 
             await db["pedidos"].update_one(
-                {"_id": ObjectId(pedido_id)},
-                {"$set": {"estado": nuevo_estado}},
+                {
+                    "_id": ObjectId(pedido_id),
+                },
+                {
+                    "$set": {
+                        "estado": nuevo_estado,
+                    }
+                },
                 session=session,
             )
 
             documento_actualizado = await db["pedidos"].find_one(
-                {"_id": ObjectId(pedido_id)},
+                {
+                    "_id": ObjectId(pedido_id),
+                },
                 session=session,
             )
 

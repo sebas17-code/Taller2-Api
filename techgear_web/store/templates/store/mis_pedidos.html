@@ -1,0 +1,385 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TechGear | Mis pedidos</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background: #101010;
+            color: #f5f5f5;
+            font-family: Arial, sans-serif;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 20px;
+            padding: 22px 7%;
+            border-bottom: 1px solid #292929;
+        }
+
+        .logo {
+            color: white;
+            font-size: 25px;
+            font-weight: bold;
+            text-decoration: none;
+        }
+
+        .logo span {
+            color: #8b9cff;
+        }
+
+        nav {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        nav a {
+            color: #ddd;
+            text-decoration: none;
+            font-size: 14px;
+        }
+
+        nav a:hover {
+            color: #8b9cff;
+        }
+
+        button {
+            background: #2785ff;
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .contenedor {
+            padding: 55px 7% 70px;
+        }
+
+        .encabezado {
+            margin-bottom: 30px;
+        }
+
+        .encabezado span {
+            color: #a8b5ff;
+            font-size: 12px;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+        }
+
+        h1 {
+            margin-top: 14px;
+            font-size: 36px;
+        }
+
+        .encabezado p {
+            margin-top: 12px;
+            color: #aaa;
+        }
+
+        .resumen {
+            background: #191919;
+            border: 1px solid #2b2b2b;
+            border-radius: 10px;
+            padding: 22px;
+            margin-bottom: 25px;
+        }
+
+        .resumen p {
+            color: #aaa;
+            font-size: 14px;
+        }
+
+        .resumen strong {
+            display: block;
+            margin-top: 8px;
+            color: white;
+            font-size: 28px;
+        }
+
+        .pedido {
+            background: #191919;
+            border: 1px solid #2b2b2b;
+            border-radius: 10px;
+            padding: 25px;
+            margin-bottom: 20px;
+        }
+
+        .pedido-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .pedido-header h2 {
+            font-size: 18px;
+        }
+
+        .estado {
+            background: #252525;
+            color: #a8b5ff;
+            padding: 7px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            text-transform: uppercase;
+        }
+
+        .fecha {
+            color: #999;
+            font-size: 13px;
+            margin-bottom: 20px;
+        }
+
+        .articulo {
+            display: flex;
+            justify-content: space-between;
+            gap: 15px;
+            padding: 15px 0;
+            border-top: 1px solid #303030;
+        }
+
+        .articulo h3 {
+            font-size: 15px;
+        }
+
+        .articulo p {
+            color: #aaa;
+            font-size: 13px;
+            margin-top: 7px;
+        }
+
+        .precio {
+            color: white;
+            font-weight: bold;
+            white-space: nowrap;
+        }
+
+        .total {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-top: 1px solid #303030;
+            margin-top: 15px;
+            padding-top: 20px;
+        }
+
+        .total span {
+            color: #aaa;
+        }
+
+        .total strong {
+            color: #8b9cff;
+            font-size: 23px;
+        }
+
+        .notas {
+            color: #aaa;
+            font-size: 13px;
+            margin-top: 18px;
+        }
+
+        .mensaje {
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 7px;
+            line-height: 1.5;
+        }
+
+        .error {
+            background: #351d1d;
+            color: #ffb5b5;
+        }
+
+        .exito {
+            background: #183522;
+            color: #9be5ad;
+        }
+
+        .vacio {
+            background: #191919;
+            border: 1px solid #2b2b2b;
+            border-radius: 10px;
+            padding: 35px;
+            text-align: center;
+            color: #aaa;
+        }
+
+        .vacio a {
+            display: inline-block;
+            margin-top: 20px;
+            color: #8b9cff;
+            text-decoration: none;
+        }
+
+        footer {
+            padding: 25px 7%;
+            border-top: 1px solid #292929;
+            color: #888;
+            font-size: 13px;
+            text-align: center;
+        }
+
+        @media (max-width: 600px) {
+            header {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+
+            nav {
+                flex-wrap: wrap;
+            }
+
+            h1 {
+                font-size: 28px;
+            }
+
+            .contenedor {
+                padding-top: 35px;
+            }
+
+            .articulo {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <a class="logo" href="/">Tech<span>Gear</span></a>
+
+        <nav>
+            <a href="{% url 'catalogo' %}">Catálogo</a>
+            <a href="{% url 'mis_pedidos' %}">Mis pedidos</a>
+
+            <span>Hola, {{ usuario.nombre }}</span>
+
+            <form action="{% url 'logout' %}" method="POST">
+                {% csrf_token %}
+                <button type="submit">Cerrar sesión</button>
+            </form>
+        </nav>
+    </header>
+
+    <main class="contenedor">
+
+        <section class="encabezado">
+            <span>Mi cuenta</span>
+            <h1>Mis pedidos</h1>
+            <p>Consulta tus compras y revisa el estado de tus pedidos.</p>
+        </section>
+
+        {% if messages %}
+            {% for message in messages %}
+                <div class="mensaje exito">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        {% if error %}
+            <div class="mensaje error">
+                {{ error }}
+            </div>
+        {% endif %}
+
+        <section class="resumen">
+            <p>Total de pedidos registrados</p>
+            <strong>{{ total }}</strong>
+        </section>
+
+        <section>
+
+            {% for pedido in pedidos %}
+
+                <article class="pedido">
+
+                    <div class="pedido-header">
+                        <h2>Pedido #{{ pedido.id }}</h2>
+                        <span class="estado">{{ pedido.estado }}</span>
+                    </div>
+
+                    <p class="fecha">
+                        Fecha: {{ pedido.creado_en }}
+                    </p>
+
+                    {% for articulo in pedido.articulos %}
+
+                        <div class="articulo">
+
+                            <div>
+                                <h3>{{ articulo.nombre }}</h3>
+
+                                <p>
+                                    Cantidad: {{ articulo.cantidad }}
+                                </p>
+
+                                <p>
+                                    Precio unitario:
+                                    ${{ articulo.precio_unitario|floatformat:0 }}
+                                </p>
+                            </div>
+
+                            <div class="precio">
+                                ${{ articulo.subtotal|floatformat:0 }}
+                            </div>
+
+                        </div>
+
+                    {% endfor %}
+
+                    <div class="total">
+                        <span>Total del pedido</span>
+                        <strong>
+                            ${{ pedido.total|floatformat:0 }}
+                        </strong>
+                    </div>
+
+                    {% if pedido.notas %}
+                        <p class="notas">
+                            Notas: {{ pedido.notas }}
+                        </p>
+                    {% endif %}
+
+                </article>
+
+            {% empty %}
+
+                {% if not error %}
+                    <div class="vacio">
+                        <h2>Aún no tienes pedidos</h2>
+                        <p>Cuando realices una compra, aparecerá aquí.</p>
+                        <a href="{% url 'catalogo' %}">
+                            Explorar catálogo
+                        </a>
+                    </div>
+                {% endif %}
+
+            {% endfor %}
+
+        </section>
+
+    </main>
+
+    <footer>
+        TechGear · Mis pedidos
+    </footer>
+
+</body>
+</html>

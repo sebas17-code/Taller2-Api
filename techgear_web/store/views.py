@@ -1,15 +1,16 @@
+
 import requests
 
-from django.conf import settings
+from functools import wraps
+
 from django.shortcuts import render, redirect
 from django.views.decorators.http import require_POST
-from functools import wraps
 from django.http import HttpResponseForbidden
 from django.contrib import messages
 
-def requiere_admin(vista):
-    """Restringe el acceso exclusivamente a usuarios administradores."""
 
+# Permisos de administrador
+def requiere_admin(vista):
     @wraps(vista)
     def verificar_acceso(request, *args, **kwargs):
         usuario = request.session.get("usuario")
@@ -26,6 +27,54 @@ def requiere_admin(vista):
 
     return verificar_acceso
 
+
+# Permisos de cliente
+def requiere_cliente(vista):
+    @wraps(vista)
+    def verificar_acceso(request, *args, **kwargs):
+        usuario = request.session.get("usuario")
+
+        if not usuario:
+            return redirect("login")
+
+        if usuario.get("rol", "cliente") != "cliente":
+            return HttpResponseForbidden(
+                "Esta sección es exclusiva para clientes."
+            )
+
+        return vista(request, *args, **kwargs)
+
+    return verificar_acceso
+
+
+# Obtener token
+def obtener_headers_jwt(request):
+    token = request.COOKIES.get("techgear_access_token")
+
+    if not token:
+        return None
+
+    return {
+        "Authorization": f"Bearer {token}"
+    }
+
+
+# Cerrar sesión si el token no es válido
+def redirigir_login_token(request):
+    request.session.flush()
+
+    respuesta = redirect("login")
+
+    respuesta.delete_cookie(
+        "techgear_access_token",
+        path="/",
+        samesite="Lax",
+    )
+
+    return respuesta
+
+
+# Catálogo de productos
 def catalogo(request):
     productos = []
     total = 0
@@ -36,13 +85,15 @@ def catalogo(request):
             "http://127.0.0.1:8000/productos",
             timeout=5,
         )
+
         respuesta.raise_for_status()
 
         datos = respuesta.json()
+
         productos = datos.get("productos", [])
         total = datos.get("total", len(productos))
 
-    except requests.RequestException:
+    except (requests.RequestException, ValueError):
         error = (
             "No fue posible consultar el catálogo. "
             "Verifica que FastAPI esté ejecutándose."
@@ -59,14 +110,159 @@ def catalogo(request):
         },
     )
 
-def iniciar_sesion(request):
-    """Consume el login de FastAPI y gestiona la sesión de Django."""
 
+# Crear pedidos
+@requiere_cliente
+@require_POST
+def crear_pedido_cliente(request):
+    headers = obtener_headers_jwt(request)
+
+    if not headers:
+        return redirigir_login_token(request)
+
+    producto_id = request.POST.get(
+        "producto_id", ""
+    ).strip()
+
+    cantidad = request.POST.get(
+        "cantidad", "1"
+    ).strip()
+
+    notas = request.POST.get(
+        "notas", ""
+    ).strip() or None
+
+    try:
+        cantidad = int(cantidad)
+
+        if cantidad <= 0:
+            raise ValueError
+
+    except ValueError:
+        messages.error(
+            request,
+            "La cantidad debe ser un número entero mayor que cero."
+        )
+        return redirect("catalogo")
+
+    datos_pedido = {
+        "articulos": [
+            {
+                "producto_id": producto_id,
+                "cantidad": cantidad,
+            }
+        ],
+        "notas": notas,
+    }
+
+    try:
+        respuesta = requests.post(
+            "http://127.0.0.1:8000/pedidos",
+            json=datos_pedido,
+            headers=headers,
+            timeout=5,
+        )
+
+    except requests.RequestException:
+        messages.error(
+            request,
+            "No fue posible conectar con el servidor de pedidos."
+        )
+        return redirect("catalogo")
+
+    try:
+        datos_respuesta = respuesta.json()
+
+    except ValueError:
+        datos_respuesta = {}
+
+    if respuesta.status_code == 201:
+        messages.success(
+            request,
+            f"Pedido registrado correctamente. "
+            f"Referencia: {datos_respuesta.get('id', '')}"
+        )
+
+        return redirect("mis_pedidos")
+
+    if respuesta.status_code == 401:
+        return redirigir_login_token(request)
+
+    detalle = datos_respuesta.get(
+        "detail",
+        "No fue posible registrar el pedido."
+    )
+
+    if isinstance(detalle, list):
+        detalle = "; ".join(
+            elemento.get("msg", "Dato inválido")
+            for elemento in detalle
+        )
+
+    messages.error(request, detalle)
+
+    return redirect("catalogo")
+
+
+# Consultar mis pedidos
+@requiere_cliente
+def mis_pedidos(request):
+    headers = obtener_headers_jwt(request)
+
+    if not headers:
+        return redirigir_login_token(request)
+
+    pedidos = []
+    total = 0
+    error = None
+
+    try:
+        respuesta = requests.get(
+            "http://127.0.0.1:8000/pedidos",
+            headers=headers,
+            timeout=5,
+        )
+
+        if respuesta.status_code == 401:
+            return redirigir_login_token(request)
+
+        respuesta.raise_for_status()
+
+        datos = respuesta.json()
+
+        pedidos = datos.get("pedidos", [])
+        total = datos.get("total", len(pedidos))
+
+    except requests.RequestException:
+        error = "No fue posible consultar tus pedidos."
+
+    except ValueError:
+        error = "El servidor devolvió una respuesta inválida."
+
+    return render(
+        request,
+        "store/mis_pedidos.html",
+        {
+            "pedidos": pedidos,
+            "total": total,
+            "error": error,
+            "usuario": request.session.get("usuario"),
+        },
+    )
+
+
+# Inicio de sesión
+def iniciar_sesion(request):
     if request.method == "GET":
         return render(request, "store/login.html")
 
-    correo = request.POST.get("correo", "").strip().lower()
-    contrasena = request.POST.get("contrasena", "")
+    correo = request.POST.get(
+        "correo", ""
+    ).strip().lower()
+
+    contrasena = request.POST.get(
+        "contrasena", ""
+    )
 
     if not correo or not contrasena:
         return render(
@@ -112,7 +308,8 @@ def iniciar_sesion(request):
 
     try:
         datos = respuesta.json()
-    except requests.exceptions.JSONDecodeError:
+
+    except ValueError:
         return render(
             request,
             "store/login.html",
@@ -131,10 +328,8 @@ def iniciar_sesion(request):
             status=502,
         )
 
-    # Evitar reutilizar una sesión anterior.
     request.session.flush()
 
-    # Guardar únicamente información pública del usuario.
     request.session["usuario"] = {
         "id": usuario["id"],
         "nombre": usuario["nombre"],
@@ -149,23 +344,22 @@ def iniciar_sesion(request):
     else:
         respuesta_django = redirect("catalogo")
 
-    # Guardar el JWT en una cookie HttpOnly.
     respuesta_django.set_cookie(
         key="techgear_access_token",
         value=token,
         max_age=30 * 60,
         httponly=True,
-        secure=not settings.DEBUG,
+        secure=request.is_secure(),
         samesite="Lax",
         path="/",
     )
 
     return respuesta_django
 
+
+# Cerrar sesión
 @require_POST
 def cerrar_sesion(request):
-    """Cierra la sesión y elimina la cookie JWT."""
-
     request.session.flush()
 
     respuesta = redirect("catalogo")
@@ -178,10 +372,10 @@ def cerrar_sesion(request):
 
     return respuesta
 
+
+# Dashboard administrativo
 @requiere_admin
 def dashboard_admin(request):
-    """Muestra los productos en el panel administrativo."""
-
     productos = []
     total = 0
     error = None
@@ -195,6 +389,7 @@ def dashboard_admin(request):
         respuesta.raise_for_status()
 
         datos = respuesta.json()
+
         productos = datos.get("productos", [])
         total = datos.get("total", len(productos))
 
@@ -212,13 +407,17 @@ def dashboard_admin(request):
         },
     )
 
+
+# Crear productos
 @requiere_admin
 def crear_producto(request):
-    """Permite al administrador registrar productos mediante FastAPI."""
-
     error = None
 
     if request.method == "POST":
+        headers = obtener_headers_jwt(request)
+
+        if not headers:
+            return redirigir_login_token(request)
 
         datos_producto = {
             "nombre": request.POST.get("nombre", "").strip(),
@@ -232,8 +431,12 @@ def crear_producto(request):
             respuesta = requests.post(
                 "http://127.0.0.1:8000/productos",
                 json=datos_producto,
+                headers=headers,
                 timeout=5,
             )
+            
+            if respuesta.status_code == 401:
+                return redirigir_login_token(request)
 
             try:
                 datos_respuesta = respuesta.json()
@@ -245,6 +448,7 @@ def crear_producto(request):
                     request,
                     "Producto creado correctamente."
                 )
+
                 return redirect("dashboard_admin")
 
             detalle = datos_respuesta.get("detail")
@@ -279,14 +483,18 @@ def crear_producto(request):
         },
     )
 
+
+# Editar productos
 @requiere_admin
 def editar_producto(request, producto_id):
-    """Permite al administrador actualizar un producto mediante FastAPI."""
-
     error = None
     producto = None
 
     if request.method == "POST":
+        headers = obtener_headers_jwt(request)
+
+        if not headers:
+            return redirigir_login_token(request)
 
         datos_producto = {
             "nombre": request.POST.get("nombre", "").strip(),
@@ -300,14 +508,18 @@ def editar_producto(request, producto_id):
             respuesta = requests.put(
                 f"http://127.0.0.1:8000/productos/{producto_id}",
                 json=datos_producto,
+                headers=headers,
                 timeout=5,
             )
+            if respuesta.status_code == 401:
+                return redirigir_login_token(request)
 
             if respuesta.status_code == 200:
                 messages.success(
                     request,
                     "Producto actualizado correctamente."
                 )
+
                 return redirect("dashboard_admin")
 
             try:
@@ -344,6 +556,9 @@ def editar_producto(request, producto_id):
     except requests.RequestException:
         error = "No fue posible consultar el producto en FastAPI."
 
+    except ValueError:
+        error = "El servidor devolvió una respuesta inválida."
+
     return render(
         request,
         "store/formulario_editar_producto.html",
@@ -353,17 +568,26 @@ def editar_producto(request, producto_id):
             "usuario": request.session.get("usuario"),
         },
     )
-    
+
+
+# Eliminar productos
 @requiere_admin
 @require_POST
 def eliminar_producto(request, producto_id):
-    """Permite al administrador eliminar productos mediante FastAPI."""
+    headers = obtener_headers_jwt(request)
+
+    if not headers:
+        return redirigir_login_token(request)
 
     try:
         respuesta = requests.delete(
             f"http://127.0.0.1:8000/productos/{producto_id}",
+            headers=headers,
             timeout=5,
         )
+        
+        if respuesta.status_code == 401:
+            return redirigir_login_token(request)
 
         if respuesta.status_code == 200:
             messages.success(

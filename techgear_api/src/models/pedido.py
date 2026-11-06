@@ -34,14 +34,11 @@ class ArticuloPedidoEntrada(BaseModel):
 
 
 class PedidoCrear(BaseModel):
-    """Datos que se reciben para crear un pedido."""
+    """Datos necesarios para crear un pedido."""
 
-    model_config = ConfigDict(str_strip_whitespace=True)
-
-    cliente: str = Field(
-        min_length=2,
-        max_length=120,
-        examples=["Cliente de prueba"],
+    model_config = ConfigDict(
+        str_strip_whitespace=True,
+        extra="forbid",
     )
 
     articulos: list[ArticuloPedidoEntrada] = Field(

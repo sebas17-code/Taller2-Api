@@ -52,4 +52,16 @@ path(
     views.eliminar_producto,
     name='eliminar_producto'
 ),
+
+    # Pedidos
+    path(
+        'pedidos/',
+        views.mis_pedidos,
+        name='mis_pedidos'
+    ),
+    path(
+        'pedidos/nuevo/',
+        views.crear_pedido_cliente,
+        name='crear_pedido_cliente'
+    ),
 ]

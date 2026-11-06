@@ -176,6 +176,67 @@
             text-align: center;
         }
 
+        .form-compra {
+            margin-top: 20px;
+            padding-top: 18px;
+            border-top: 1px solid #303030;
+        }
+
+        .form-compra label {
+            display: block;
+            margin-bottom: 8px;
+            color: #aaa;
+            font-size: 13px;
+        }
+
+        .form-compra input {
+            width: 100%;
+            padding: 11px;
+            margin-bottom: 12px;
+            background: #252525;
+            color: white;
+            border: 1px solid #444;
+            border-radius: 5px;
+        }
+
+        .btn-comprar {
+            width: 100%;
+            padding: 12px;
+            background: #2785ff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .btn-comprar:hover {
+            background: #176bd3;
+        }
+
+        .link-login {
+            display: inline-block;
+            margin-top: 18px;
+            color: #8b9cff;
+            text-decoration: none;
+        }
+
+        .mensaje {
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 7px;
+        }
+
+        .success {
+            background: #183522;
+            color: #9be5ad;
+        }
+
+        .error {
+            background: #351d1d;
+            color: #ffb5b5;
+        }
+
         @media (max-width: 520px) {
             header {
                 align-items: flex-start;
@@ -201,17 +262,20 @@
         <a href="#catalogo">Catálogo</a>
 
         {% if usuario %}
+
+            {% if usuario.rol == "cliente" %}
+                <a href="{% url 'mis_pedidos' %}">Mis pedidos</a>
+            {% endif %}
+
+            {% if usuario.rol == "admin" %}
+                <a href="{% url 'dashboard_admin' %}">Dashboard</a>
+            {% endif %}
+
             <span>Hola, {{ usuario.nombre }}</span>
 
             <form action="{% url 'logout' %}" method="POST" style="display: inline;">
                 {% csrf_token %}
-                <button
-                    type="submit"
-                    style="background: #2785ff; color: white; border: none;
-                        padding: 10px 16px; border-radius: 6px; cursor: pointer;"
-                >
-                    Cerrar sesión
-                </button>
+                <button type="submit">Cerrar sesión</button>
             </form>
 
         {% else %}
@@ -236,8 +300,12 @@
                 <p>{{ total|default:0 }} productos</p>
             </div>
 
-            {% if error %}
-                <div class="mensaje error">{{ error }}</div>
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="mensaje {{ message.tags }}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
             {% endif %}
 
             <div class="productos">
@@ -256,13 +324,56 @@
                         </p>
 
                         {% if producto.activo and producto.stock > 0 %}
+
                             <p class="stock disponible">
                                 Disponible · {{ producto.stock }} unidades
                             </p>
+
+                            {% if usuario and usuario.rol == "cliente" %}
+
+                                <form
+                                    action="{% url 'crear_pedido_cliente' %}"
+                                    method="POST"
+                                    class="form-compra"
+                                >
+                                    {% csrf_token %}
+
+                                    <input
+                                        type="hidden"
+                                        name="producto_id"
+                                        value="{{ producto.id }}"
+                                    >
+
+                                    <label>Cantidad</label>
+
+                                    <input
+                                        type="number"
+                                        name="cantidad"
+                                        min="1"
+                                        max="{{ producto.stock }}"
+                                        value="1"
+                                        required
+                                    >
+
+                                    <button type="submit" class="btn-comprar">
+                                        Realizar pedido
+                                    </button>
+                                </form>
+
+                            {% elif not usuario %}
+
+                                <a href="{% url 'login' %}" class="link-login">
+                                    Inicia sesión para comprar
+                                </a>
+
+                            {% endif %}
+
                         {% else %}
+
                             <p class="stock agotado">No disponible</p>
+
                         {% endif %}
-                    </article>
+                                            </article>
                 {% empty %}
                     <div class="mensaje vacio">
                         {% if not error %}
